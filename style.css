@@ -133,10 +133,6 @@ body {
   white-space: nowrap;
 }
 
-.btn-inline:hover {
-  background-color: #475569;
-}
-
 .poi-dropdown {
   position: absolute;
   top: 100%;
@@ -181,30 +177,24 @@ body {
   color: #94a3b8;
 }
 
-.action-buttons-row {
-  display: flex;
-  gap: 8px;
-}
-
 .btn {
-  padding: 10px 14px;
+  padding: 10px 16px;
   border: none;
   border-radius: 6px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s;
-  font-size: 0.9rem;
+  transition: background-color 0.2s;
+  font-size: 0.95rem;
 }
 
 .btn:disabled {
-  opacity: 0.5;
+  opacity: 0.6;
   cursor: not-allowed;
 }
 
 .btn-primary {
   background-color: #2563eb;
   color: #ffffff;
-  flex: 1;
 }
 
 .btn-primary:hover:not(:disabled) {
@@ -220,24 +210,6 @@ body {
   background-color: #0369a1;
 }
 
-.btn-simulate {
-  background-color: #0d9488;
-  color: #ffffff;
-}
-
-.btn-simulate:hover {
-  background-color: #0f766e;
-}
-
-.btn-navi {
-  background-color: #10b981;
-  color: #ffffff;
-}
-
-.btn-navi:hover {
-  background-color: #059669;
-}
-
 .media-btn-group {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -245,6 +217,9 @@ body {
 }
 
 .btn-media {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   background-color: #334155;
   color: #f8fafc;
   border: 1px dashed #64748b;
@@ -253,6 +228,7 @@ body {
   font-size: 0.88rem;
   font-weight: 600;
   cursor: pointer;
+  text-align: center;
   transition: all 0.2s;
 }
 
@@ -260,6 +236,17 @@ body {
   background-color: #475569;
   border-color: #38bdf8;
   color: #38bdf8;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
 }
 
 .preview-box {
@@ -293,72 +280,30 @@ body {
   cursor: pointer;
 }
 
-/* 지도 영역 (크기 강제 고정) */
+/* 지도 영역 높이 강제 고정 */
 .map-container {
   position: relative;
   border: 1px solid #334155;
   border-radius: 8px;
   overflow: hidden;
-  height: 380px;
-  background-color: #0f172a;
+  height: 380px !important;
+  min-height: 380px !important;
+  background-color: #1e293b;
 }
 
 #map {
   width: 100% !important;
-  height: 100% !important;
-  min-height: 380px;
+  height: 380px !important;
+  min-height: 380px !important;
+  display: block !important;
   z-index: 1;
-}
-
-/* 실시간 네비 HUD */
-.navi-hud {
-  position: absolute;
-  top: 10px;
-  left: 10px;
-  right: 10px;
-  background: rgba(15, 23, 42, 0.94);
-  border: 1px solid #38bdf8;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
-  border-radius: 8px;
-  padding: 10px 14px;
-  z-index: 500;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.hud-main {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.hud-icon {
-  font-size: 1.3rem;
-}
-
-.hud-instruction {
-  font-size: 0.95rem;
-  font-weight: 700;
-  color: #38bdf8;
-}
-
-.hud-sub {
-  font-size: 0.8rem;
-  color: #94a3b8;
-  display: flex;
-  gap: 8px;
-}
-
-.divider {
-  color: #475569;
 }
 
 .map-legend {
   position: absolute;
   bottom: 12px;
   left: 12px;
-  background: rgba(15, 23, 42, 0.9);
+  background: rgba(15, 23, 42, 0.92);
   border: 1px solid #334155;
   padding: 6px 12px;
   border-radius: 6px;
@@ -389,14 +334,31 @@ body {
 .pin-warning { background-color: #f59e0b; color: #000; }
 .pin-normal { background-color: #10b981; }
 
-/* 네비게이션 내 위치 펄스 마커 */
-.user-marker-pulse {
-  width: 22px;
-  height: 22px;
-  background-color: #38bdf8;
-  border: 3px solid #ffffff;
-  border-radius: 50%;
-  box-shadow: 0 0 14px #38bdf8;
+.route-summary {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.summary-metric {
+  background-color: #0f172a;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  padding: 10px;
+  text-align: center;
+}
+
+.metric-title {
+  display: block;
+  font-size: 0.75rem;
+  color: #94a3b8;
+  margin-bottom: 2px;
+}
+
+.metric-value {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #38bdf8;
 }
 
 .route-steps-container {
@@ -413,7 +375,7 @@ body {
 
 .step-list {
   list-style: none;
-  max-height: 140px;
+  max-height: 150px;
   overflow-y: auto;
   border: 1px solid #334155;
   border-radius: 6px;
