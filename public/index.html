@@ -2,140 +2,206 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>도로 안전 통합 관제 & 보행자 경로 안내</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>SafeRoad - 도로 안전 통합 관제</title>
 
-  <!-- 글로벌 표준 Leaflet 지도 라이브러리 (unpkg CDN) -->
+  <!-- Leaflet 지도 엔진 (CDN) -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <header class="dashboard-header">
-    <div class="header-container">
-      <h1>도로 안전 통합 관제 & TMAP 보행자 길찾기</h1>
-      <span class="status-indicator">● 시스템 가동 중</span>
-    </div>
-  </header>
+  <div class="app-viewport">
+    <!-- 1. 전체 화면 지도 -->
+    <div id="map"></div>
 
-  <!-- 모바일 탭 바 (스마트폰에서만 노출) -->
-  <nav class="mobile-tab-nav">
-    <button type="button" class="tab-btn active" data-target="left-panel">🗺️ 지도 & 길찾기</button>
-    <button type="button" class="tab-btn" data-target="right-panel">🚨 민원 제보 (<span id="mobileCount">0</span>)</button>
-  </nav>
-
-  <main class="dashboard-grid">
-    <!-- 좌측 패널: TMAP 보행자 길찾기 & 지도 -->
-    <section class="panel left-panel active-panel">
-      <div class="panel-header">
-        <h2>보행자 경로 탐색 & 안전 관제 지도</h2>
+    <!-- 2. 상단 헤더 (SafeRoad 로고 & 포인트 배지) -->
+    <header class="app-header">
+      <div class="brand-badge">
+        <span class="shield-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            <path d="m9 12 2 2 4-4"/>
+          </svg>
+        </span>
+        <span class="brand-text">SafeRoad</span>
       </div>
 
-      <form id="routeForm" class="control-form" autocomplete="off">
-        <div class="input-row">
-          <div class="input-group autocomplete-wrapper">
-            <label for="startInput">출발지 (장소 자동 유추)</label>
+      <div class="points-badge">
+        <span class="coin-icon">🌕</span>
+        <span id="userPoints" class="points-val">3,450 P</span>
+      </div>
+    </header>
+
+    <!-- 3. 좌측 플로팅 필터 메뉴 -->
+    <aside class="floating-filter-card">
+      <div class="filter-header">
+        <span class="pin-icon">📍</span> 지도 필터
+      </div>
+      <div class="filter-btn-group">
+        <button type="button" class="filter-btn active" data-filter="all">
+          <span class="dot dot-all"></span> 전체 보기
+        </button>
+        <button type="button" class="filter-btn" data-filter="danger">
+          <span class="dot dot-danger"></span> 위험만 보기
+        </button>
+        <button type="button" class="filter-btn" data-filter="warning">
+          <span class="dot dot-warning"></span> 주의 지역
+        </button>
+        <button type="button" class="filter-btn" data-filter="resolved">
+          <span class="dot dot-resolved"></span> 해결된 곳
+        </button>
+        <button type="button" class="filter-btn" data-filter="my">
+          <span class="icon-star">⭐</span> 내 제보
+        </button>
+      </div>
+    </aside>
+
+    <!-- 4. 우측 줌 & GPS 컨트롤 -->
+    <div class="floating-controls">
+      <div class="zoom-group">
+        <button type="button" id="btnZoomIn" class="ctrl-btn" aria-label="확대">+</button>
+        <button type="button" id="btnZoomOut" class="ctrl-btn" aria-label="축소">−</button>
+      </div>
+      <button type="button" id="btnGpsCenter" class="ctrl-btn gps-btn" aria-label="내 위치">
+        <span class="target-icon">🎯</span>
+      </button>
+    </div>
+
+    <!-- 5. TMAP 보행자 길찾기 패널 (접이식 바) -->
+    <div class="route-trigger-bar" id="routeBar">
+      <div class="route-bar-content" id="routeBarSummary">
+        <span class="route-icon">🚶</span>
+        <span class="route-text" id="routeBarText">보행자 안전 길찾기 경로 탐색</span>
+      </div>
+      <button type="button" id="btnOpenRouteModal" class="btn-sm-action">경로</button>
+    </div>
+
+    <!-- 6. 하단 네비게이션 탭바 (SafeRoad 정품 스타일) -->
+    <nav class="bottom-tab-bar">
+      <button type="button" class="tab-item active" data-tab="map">
+        <span class="tab-icon">🗺️</span>
+        <span class="tab-label">지도</span>
+      </button>
+
+      <button type="button" class="tab-item" data-tab="rank">
+        <span class="tab-icon">🏆</span>
+        <span class="tab-label">랭킹</span>
+      </button>
+
+      <!-- 중앙 돌출 FAB 제보 버튼 -->
+      <div class="center-fab-wrapper">
+        <button type="button" id="btnOpenReportSheet" class="fab-report-btn" aria-label="제보하기">
+          <span class="fab-plus">+</span>
+        </button>
+        <span class="fab-label">제보하기</span>
+      </div>
+
+      <button type="button" class="tab-item" data-tab="store">
+        <span class="tab-icon">🎁</span>
+        <span class="tab-label">스토어</span>
+      </button>
+
+      <button type="button" class="tab-item" data-tab="settings">
+        <span class="tab-icon">⚙️</span>
+        <span class="tab-label">설정</span>
+      </button>
+    </nav>
+
+    <!-- 7. [모달 1] 현장 사진 제보 & Gemini AI 분석 바텀시트 -->
+    <div class="bottom-sheet-backdrop" id="reportSheetBackdrop">
+      <div class="bottom-sheet" id="reportSheet">
+        <div class="sheet-handle-bar"></div>
+        <div class="sheet-header">
+          <h3>현장 사진 기반 도로 안전 제보</h3>
+          <button type="button" class="btn-sheet-close" id="btnCloseReportSheet">✕</button>
+        </div>
+
+        <form id="complaintForm" class="sheet-form" autocomplete="off">
+          <div class="media-btn-row">
+            <label for="cameraInput" class="btn-media-pill">
+              📷 카메라 촬영
+            </label>
+            <label for="galleryInput" class="btn-media-pill">
+              🖼️ 사진첩 선택
+            </label>
+            <input type="file" id="cameraInput" accept="image/*" capture="environment" class="visually-hidden">
+            <input type="file" id="galleryInput" accept="image/*" class="visually-hidden">
+          </div>
+
+          <div id="previewContainer" class="image-preview-box" style="display: none;">
+            <img id="imagePreview" alt="미리보기">
+            <button type="button" id="removeImgBtn" class="btn-img-remove">✕</button>
+          </div>
+
+          <div class="form-field">
+            <label for="complaintLocation">발생 위치 (지도 터치 시 자동 지정)</label>
+            <input type="text" id="complaintLocation" placeholder="주소를 입력하거나 지도를 터치하세요" value="시청역 4번 출구 앞" required>
+            <input type="hidden" id="complaintLat" value="37.5665">
+            <input type="hidden" id="complaintLon" value="126.9780">
+          </div>
+
+          <div class="form-field">
+            <label for="complaintNotes">추가 메모 (선택)</label>
+            <textarea id="complaintNotes" rows="2" placeholder="도로 상태나 보행 위험 요소를 적어주세요."></textarea>
+          </div>
+
+          <button type="submit" id="submitComplaintBtn" class="btn-submit-report">
+            Gemini AI 자동 판독 & 제보하기 (+100 P)
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- 8. [모달 2] TMAP 보행자 길찾기 입력 모달 -->
+    <div class="bottom-sheet-backdrop" id="routeModalBackdrop">
+      <div class="bottom-sheet" id="routeModal">
+        <div class="sheet-handle-bar"></div>
+        <div class="sheet-header">
+          <h3>보행자 안전 길찾기</h3>
+          <button type="button" class="btn-sheet-close" id="btnCloseRouteModal">✕</button>
+        </div>
+
+        <form id="routeForm" class="sheet-form" autocomplete="off">
+          <div class="form-field autocomplete-wrapper">
+            <label for="startInput">출발지</label>
             <div class="input-with-btn">
               <input type="text" id="startInput" placeholder="출발 장소 입력" value="서울역 1번출구" required>
-              <button type="button" id="btnGpsStart" class="btn-inline">📍내위치</button>
+              <button type="button" id="btnGpsStart" class="btn-sub-action">📍내위치</button>
             </div>
             <ul id="startPoiList" class="poi-dropdown"></ul>
             <input type="hidden" id="startLat" value="37.5547">
             <input type="hidden" id="startLon" value="126.9706">
           </div>
 
-          <div class="input-group autocomplete-wrapper">
-            <label for="endInput">도착지 (장소 자동 유추)</label>
+          <div class="form-field autocomplete-wrapper">
+            <label for="endInput">도착지</label>
             <input type="text" id="endInput" placeholder="도착 장소 입력" value="남대문시장" required>
             <ul id="endPoiList" class="poi-dropdown"></ul>
             <input type="hidden" id="endLat" value="37.5592">
             <input type="hidden" id="endLon" value="126.9776">
           </div>
-        </div>
 
-        <button type="submit" id="searchRouteBtn" class="btn btn-primary">보행자 경로 탐색</button>
-      </form>
-
-      <!-- 지도 뷰어 (인라인 높이 강제) -->
-      <div class="map-container">
-        <div id="map" style="width: 100%; height: 380px; min-height: 380px;"></div>
-        <div class="map-legend">
-          <span>🟢 출발</span>
-          <span>🔵 도착</span>
-          <span>🚨 도로 민원</span>
-        </div>
+          <button type="submit" id="searchRouteBtn" class="btn-submit-report">
+            안전 경로 탐색
+          </button>
+        </form>
       </div>
+    </div>
 
-      <!-- 탐색 요약 정보 -->
-      <div id="routeSummary" class="route-summary" style="display: none;">
-        <div class="summary-metric">
-          <span class="metric-title">총 보행 거리</span>
-          <span class="metric-value" id="summaryDistance">-</span>
+    <!-- 9. [모달 3] 랭킹/스토어/설정 서브 뷰 -->
+    <div class="bottom-sheet-backdrop" id="subViewBackdrop">
+      <div class="bottom-sheet" id="subViewSheet">
+        <div class="sheet-handle-bar"></div>
+        <div class="sheet-header">
+          <h3 id="subViewTitle">랭킹</h3>
+          <button type="button" class="btn-sheet-close" id="btnCloseSubView">✕</button>
         </div>
-        <div class="summary-metric">
-          <span class="metric-title">예상 소요 시간</span>
-          <span class="metric-value" id="summaryTime">-</span>
-        </div>
+        <div class="sub-view-content" id="subViewContent"></div>
       </div>
-
-      <div class="route-steps-container">
-        <h3>TMAP 보행자 구간별 안내</h3>
-        <ul id="routeStepsList" class="step-list">
-          <li class="empty-state">경로 탐색 버튼을 누르면 횡단보도 및 안전 이동 구간이 표시됩니다.</li>
-        </ul>
-      </div>
-    </section>
-
-    <!-- 우측 패널: 사진 기반 Gemini AI 분석 -->
-    <section class="panel right-panel">
-      <div class="panel-header">
-        <h2>현장 사진 기반 도로 안전 AI 분석</h2>
-      </div>
-
-      <form id="complaintForm" class="control-form" autocomplete="off">
-        <div class="input-group">
-          <label>현장 사진 등록 (필수)</label>
-          <div class="media-btn-group">
-            <label for="cameraInput" class="btn-media">📷 카메라 직접 촬영</label>
-            <label for="galleryInput" class="btn-media">🖼️ 사진첩에서 선택</label>
-          </div>
-          <input type="file" id="cameraInput" accept="image/*" capture="environment" class="visually-hidden">
-          <input type="file" id="galleryInput" accept="image/*" class="visually-hidden">
-        </div>
-
-        <div id="previewContainer" class="preview-box" style="display: none;">
-          <img id="imagePreview" alt="업로드 이미지 미리보기">
-          <button type="button" id="removeImgBtn" class="btn-remove">사진 제거</button>
-        </div>
-
-        <div class="input-group autocomplete-wrapper">
-          <label for="complaintLocation">발생 위치 (검색 또는 지도를 직접 터치)</label>
-          <input type="text" id="complaintLocation" placeholder="주소를 입력하거나 지도를 터치하세요" value="시청역 4번 출구 앞" required>
-          <ul id="complaintPoiList" class="poi-dropdown"></ul>
-          <input type="hidden" id="complaintLat" value="37.5665">
-          <input type="hidden" id="complaintLon" value="126.9780">
-        </div>
-
-        <div class="input-group">
-          <label for="complaintNotes">추가 메모 (선택 사항)</label>
-          <textarea id="complaintNotes" rows="2" placeholder="도로 파손 상태나 특이사항을 적어주세요."></textarea>
-        </div>
-
-        <button type="submit" id="submitComplaintBtn" class="btn btn-secondary">사진 AI 자동 분석 및 제보</button>
-      </form>
-
-      <div class="complaints-list-container">
-        <div class="list-header">
-          <h3>AI 분석 완료 민원 목록</h3>
-          <span id="complaintCount" class="badge badge-count">0건</span>
-        </div>
-        <div id="complaintsList" class="cards-list">
-          <div class="empty-state">현장 사진을 올리면 AI가 분석 후 지도에 마커를 찍습니다.</div>
-        </div>
-      </div>
-    </section>
-  </main>
+    </div>
+  </div>
 
   <script src="app.js"></script>
 </body>
