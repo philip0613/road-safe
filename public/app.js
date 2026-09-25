@@ -10,57 +10,52 @@ let currentBase64Image = null;
 let currentMimeType = null;
 let routePolyline = null;
 
-// 스크린샷과 동일한 목업 및 사용자 제보 마커 리스트
+// 마커 데이터
 let complaints = [
-  { id: 1, type: 'danger', lat: 37.5670, lon: 126.9772, title: '대형 포트홀 위험', isMine: false },
-  { id: 2, type: 'warning', lat: 37.5678, lon: 126.9765, title: '보도블록 침하 주의', isMine: false },
-  { id: 3, type: 'danger', lat: 37.5658, lon: 126.9790, title: '맨홀 뚜껑 파손', isMine: true },
-  { id: 4, type: 'resolved', lat: 37.5685, lon: 126.9785, title: '균열 보수 완료', isMine: false },
-  { id: 5, type: 'resolved', lat: 37.5668, lon: 126.9802, title: '가드레일 복구 완료', isMine: false }
+  { id: 1, type: 'danger', lat: 37.5670, lon: 126.9772, title: '대형 포트홀 위험 (긴급 복구 요망)', isMine: false, time: '10분 전' },
+  { id: 2, type: 'warning', lat: 37.5678, lon: 126.9765, title: '보도블록 침하로 인한 걸림 주의', isMine: false, time: '25분 전' },
+  { id: 3, type: 'danger', lat: 37.5658, lon: 126.9790, title: '맨홀 뚜껑 파손 및 이탈', isMine: true, time: '1시간 전' },
+  { id: 4, type: 'resolved', lat: 37.5685, lon: 126.9785, title: '균열 아스팔트 포장 보수 완료', isMine: false, time: '어제' },
+  { id: 5, type: 'resolved', lat: 37.5668, lon: 126.9802, title: '가드레일 파손 복구 완료', isMine: false, time: '2일 전' }
 ];
 
 let markerLayers = [];
 
 // ==========================================
-// 2. 지도 초기화 (워터마크 없는 깔끔한 타일)
+// 2. 지도 초기화
 // ==========================================
 function initMap() {
   const mapEl = document.getElementById('map');
   if (!mapEl || map) return;
 
-  // 서울 시청 중심 세팅
   map = L.map('map', {
-    zoomControl: false // 커스텀 줌 버튼 사용
+    zoomControl: false
   }).setView([37.5665, 126.9780], 16);
 
-  // 워터마크 없는 깨끗한 OSM 타일
   L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
     maxZoom: 19,
     attribution: '&copy; OpenStreetMap'
   }).addTo(map);
 
-  // 지도 클릭 시 제보 위치 설정
   map.on('click', (e) => {
     const { lat, lng } = e.latlng;
     document.getElementById('complaintLat').value = lat;
     document.getElementById('complaintLon').value = lng;
     document.getElementById('complaintLocation').value = `선택 위치 (${lat.toFixed(4)}, ${lng.toFixed(4)})`;
-    openReportSheet();
+    openReportModal();
   });
 
-  // 우측 커스텀 줌 버튼 연동
   document.getElementById('btnZoomIn').addEventListener('click', () => map.zoomIn());
   document.getElementById('btnZoomOut').addEventListener('click', () => map.zoomOut());
-
-  // GPS 버튼 클릭 시 현재 위치 이동
   document.getElementById('btnGpsCenter').addEventListener('click', moveToCurrentGps);
 
   renderMarkers();
+  renderDesktopComplaintsList();
 
   setTimeout(() => { if (map) map.invalidateSize(); }, 200);
 }
 
-// 스크린샷과 동일한 반투명 원형 후광 마커 생성
+// 스크린샷과 동일한 반투명 원형 후광 마커
 function createHaloIcon(type) {
   let haloClass = 'marker-halo-danger';
   let coreClass = 'core-danger';
@@ -90,11 +85,9 @@ function createHaloIcon(type) {
   });
 }
 
-// 필터링 적용된 마커 렌더링
 function renderMarkers() {
   if (!map) return;
 
-  // 기존 마커 제거
   markerLayers.forEach(layer => map.removeLayer(layer));
   markerLayers = [];
 
@@ -122,36 +115,102 @@ function renderMarkers() {
   });
 }
 
+function renderDesktopComplaintsList() {
+  const listEl = document.getElementById('desktopComplaintsList');
+  if (!listEl) return;
+
+  if (complaints.length === 0) {
+    listEl.innerHTML = '<div class="empty-state">접수된 민원이 없습니다.</div>';
+    return;
+  }
+
+  listEl.innerHTML = complaints.map(c => `
+    <div class="complaint-pc-card" onclick="focusComplaint(${c.lat}, ${c.lon})">
+      <div class="c-header">
+        <span style="color:${c.type === 'danger' ? '#ff4757' : c.type === 'warning' ? '#ffa502' : '#2ed573'};">
+          ● ${c.type === 'danger' ? '위험' : c.type === 'warning' ? '주의' : '해결됨'}
+        </span>
+        <span style="color:#94a3b8;">${c.time}</span>
+      </div>
+      <div class="c-title">${c.title}</div>
+    </div>
+  `).join('');
+}
+
+window.focusComplaint = function(lat, lon) {
+  if (map) {
+    map.setView([lat, lon], 17);
+  }
+};
+
 // ==========================================
-// 3. 필터 버튼 이벤트
+// 3. 필터 동기화 (모바일 알약 & PC 사이드바)
 // ==========================================
 function initFilterEvents() {
-  const filterBtns = document.querySelectorAll('.filter-btn');
-  filterBtns.forEach(btn => {
+  const allFilterButtons = document.querySelectorAll('.filter-btn, .filter-item-btn');
+  allFilterButtons.forEach(btn => {
     btn.addEventListener('click', () => {
-      filterBtns.forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      currentFilter = btn.dataset.filter;
+      const filter = btn.dataset.filter;
+      currentFilter = filter;
+
+      allFilterButtons.forEach(b => {
+        if (b.dataset.filter === filter) b.classList.add('active');
+        else b.classList.remove('active');
+      });
+
       renderMarkers();
     });
   });
 }
 
 // ==========================================
-// 4. 모달 & 바텀시트 제어
+// 4. PC 사이드바 탭 및 접기/펼치기
 // ==========================================
-function openReportSheet() {
-  document.getElementById('reportSheetBackdrop').style.display = 'flex';
+function initDesktopSidebar() {
+  const tabs = document.querySelectorAll('.sidebar-tab');
+  const panes = {
+    route: document.getElementById('paneRoute'),
+    filter: document.getElementById('paneFilter'),
+    list: document.getElementById('paneList')
+  };
+
+  tabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      tabs.forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+
+      const target = tab.dataset.tab;
+      Object.keys(panes).forEach(k => {
+        if (k === target) panes[k]?.classList.add('active');
+        else panes[k]?.classList.remove('active');
+      });
+    });
+  });
+
+  const sidebar = document.getElementById('desktopSidebar');
+  const toggleBtn = document.getElementById('btnSidebarToggle');
+  if (toggleBtn && sidebar) {
+    toggleBtn.addEventListener('click', () => {
+      sidebar.classList.toggle('collapsed');
+      toggleBtn.textContent = sidebar.classList.contains('collapsed') ? '▶' : '◀';
+      setTimeout(() => { if (map) map.invalidateSize(); }, 320);
+    });
+  }
 }
 
-function closeReportSheet() {
+// ==========================================
+// 5. 모달 및 바텀시트 제어
+// ==========================================
+function openReportModal() {
+  document.getElementById('reportSheetBackdrop').style.display = 'flex';
+}
+function closeReportModal() {
   document.getElementById('reportSheetBackdrop').style.display = 'none';
 }
 
 function openRouteModal() {
   document.getElementById('routeModalBackdrop').style.display = 'flex';
 }
-
 function closeRouteModal() {
   document.getElementById('routeModalBackdrop').style.display = 'none';
 }
@@ -161,13 +220,12 @@ function openSubView(title, html) {
   document.getElementById('subViewContent').innerHTML = html;
   document.getElementById('subViewBackdrop').style.display = 'flex';
 }
-
 function closeSubView() {
   document.getElementById('subViewBackdrop').style.display = 'none';
 }
 
 // ==========================================
-// 5. GPS 위치 이동
+// 6. GPS 위치 추적
 // ==========================================
 function moveToCurrentGps() {
   if (!navigator.geolocation) {
@@ -178,16 +236,18 @@ function moveToCurrentGps() {
     (pos) => {
       userCoords = { lat: pos.coords.latitude, lon: pos.coords.longitude };
       map.setView([userCoords.lat, userCoords.lon], 16);
-      document.getElementById('startLat').value = userCoords.lat;
-      document.getElementById('startLon').value = userCoords.lon;
-      document.getElementById('startInput').value = '내 현재 GPS 위치';
+
+      // 모바일 & PC 인풋 동시 세팅
+      ['mStartLat', 'dStartLat'].forEach(id => { const el = document.getElementById(id); if (el) el.value = userCoords.lat; });
+      ['mStartLon', 'dStartLon'].forEach(id => { const el = document.getElementById(id); if (el) el.value = userCoords.lon; });
+      ['mStartInput', 'dStartInput'].forEach(id => { const el = document.getElementById(id); if (el) el.value = '내 현재 GPS 위치'; });
     },
     (err) => alert(`GPS 위치를 가져올 수 없습니다: ${err.message}`)
   );
 }
 
 // ==========================================
-// 6. Gemini Vision AI 사진 제보 및 포인트 지급
+// 7. Gemini Vision AI 사진 제보
 // ==========================================
 function initMediaControls() {
   const cameraInput = document.getElementById('cameraInput');
@@ -237,7 +297,7 @@ async function handleComplaintSubmit(e) {
   const btn = document.getElementById('submitComplaintBtn');
 
   btn.disabled = true;
-  btn.textContent = 'AI가 현장 사진 판독 중...';
+  btn.textContent = 'Gemini AI 사진 판독 중...';
 
   try {
     const res = await fetch('/api/analyze', {
@@ -253,32 +313,31 @@ async function handleComplaintSubmit(e) {
 
     const analysis = res.ok ? await res.json() : { riskLevel: '주의', summary: '노면 파손' };
 
-    // 위험도 타입 변환
     let type = 'warning';
     if (analysis.riskLevel === '긴급') type = 'danger';
     else if (analysis.riskLevel === '보통') type = 'resolved';
 
-    // 신규 민원 마커 추가
     complaints.unshift({
       id: Date.now(),
       type: type,
       lat: lat,
       lon: lon,
       title: analysis.summary || '도로 위험 제보',
-      isMine: true
+      isMine: true,
+      time: '방금 전'
     });
 
     renderMarkers();
+    renderDesktopComplaintsList();
 
-    // 포인트 지급 (+100 P)
     userPoints += 100;
     document.getElementById('userPoints').textContent = `${userPoints.toLocaleString()} P`;
 
-    closeReportSheet();
+    closeReportModal();
     document.getElementById('removeImgBtn').click();
     document.getElementById('complaintNotes').value = '';
 
-    alert(`🎉 제보가 성공적으로 접수되었습니다!\n[AI 판독]: ${analysis.summary}\n보상으로 100 P가 적립되었습니다.`);
+    alert(`🎉 제보가 성공적으로 접수되었습니다!\n[AI 판독 결과]: ${analysis.summary}\n보상으로 100 P가 적립되었습니다.`);
   } catch (err) {
     alert('제보 중 오류가 발생했습니다.');
   } finally {
@@ -288,31 +347,18 @@ async function handleComplaintSubmit(e) {
 }
 
 // ==========================================
-// 7. TMAP 보행자 길찾기 연동
+// 8. TMAP 보행자 길찾기 연동 (모바일/PC 공용 함수)
 // ==========================================
-async function searchPedestrianRoute(e) {
-  if (e) e.preventDefault();
-
-  const startName = document.getElementById('startInput').value.trim();
-  const endName = document.getElementById('endInput').value.trim();
-  const startLat = parseFloat(document.getElementById('startLat').value);
-  const startLon = parseFloat(document.getElementById('startLon').value);
-  const endLat = parseFloat(document.getElementById('endLat').value);
-  const endLon = parseFloat(document.getElementById('endLon').value);
-  const btn = document.getElementById('searchRouteBtn');
-
-  btn.disabled = true;
-  btn.textContent = '경로 탐색 중...';
-
+async function runPedestrianRoute(startName, endName, sLat, sLon, eLat, eLon, isDesktop) {
   try {
     const res = await fetch('/api/route', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        startX: startLon.toString(),
-        startY: startLat.toString(),
-        endX: endLon.toString(),
-        endY: endLat.toString(),
+        startX: sLon.toString(),
+        startY: sLat.toString(),
+        endX: eLon.toString(),
+        endY: eLat.toString(),
         reqCoordType: 'WGS84GEO',
         resCoordType: 'WGS84GEO',
         startName: startName || '출발지',
@@ -322,39 +368,61 @@ async function searchPedestrianRoute(e) {
 
     const data = await res.json();
     const coords = [];
+    const steps = [];
     const features = data.features || [];
 
     features.forEach(f => {
       if (f.geometry.type === 'LineString') {
         f.geometry.coordinates.forEach(pt => coords.push([pt[1], pt[0]]));
+      } else if (f.geometry.type === 'Point' && f.properties.description) {
+        steps.push(f.properties.description);
       }
     });
 
     if (routePolyline) map.removeLayer(routePolyline);
 
-    // 민트색 보행자 경로선 렌더링
+    // 민트색 보행자 경로선
     routePolyline = L.polyline(coords, {
       color: '#00b894',
       weight: 6,
       opacity: 0.9
     }).addTo(map);
 
-    map.fitBounds(routePolyline.getBounds(), { padding: [40, 40] });
+    map.fitBounds(routePolyline.getBounds(), { padding: [50, 50] });
 
     const totalDist = features[0]?.properties?.totalDistance || 0;
     const totalTime = Math.round((features[0]?.properties?.totalTime || 0) / 60);
 
-    document.getElementById('routeBarText').textContent = `${(totalDist / 1000).toFixed(1)}km · 약 ${totalTime}분 보행 소요`;
-    closeRouteModal();
+    // 모바일 텍스트 갱신
+    const mobileText = document.getElementById('routeBarText');
+    if (mobileText) mobileText.textContent = `${(totalDist / 1000).toFixed(1)}km · 약 ${totalTime}분 보행`;
+
+    // PC 사이드바 갱신
+    const distEl = document.getElementById('dSummaryDist');
+    const timeEl = document.getElementById('dSummaryTime');
+    const summaryBox = document.getElementById('desktopRouteSummary');
+    const stepsList = document.getElementById('dRouteStepsList');
+
+    if (distEl) distEl.textContent = totalDist >= 1000 ? `${(totalDist / 1000).toFixed(2)} km` : `${totalDist} m`;
+    if (timeEl) timeEl.textContent = `${totalTime}분`;
+    if (summaryBox) summaryBox.style.display = 'grid';
+
+    if (stepsList) {
+      stepsList.innerHTML = steps.map((s, idx) => `
+        <li class="step-item">
+          <span class="step-index">${idx + 1}</span>
+          <span>${s}</span>
+        </li>
+      `).join('');
+    }
+
+    if (!isDesktop) closeRouteModal();
   } catch (err) {
-    alert('경로 탐색에 실패했습니다.');
-  } finally {
-    btn.disabled = false;
-    btn.textContent = '안전 경로 탐색';
+    alert('보행자 경로 탐색에 실패했습니다.');
   }
 }
 
-// POI 자동완성
+// POI 자동완성 바인딩
 function setupPoi(inputId, listId, onSelect) {
   const input = document.getElementById(inputId);
   const list = document.getElementById(listId);
@@ -401,9 +469,9 @@ function setupPoi(inputId, listId, onSelect) {
 }
 
 // ==========================================
-// 8. 하단 탭바 이벤트 (랭킹 / 스토어 / 설정)
+// 9. 하단 탭바 & 버튼 이벤트 초기화
 // ==========================================
-function initBottomTabs() {
+function initTabEvents() {
   document.querySelectorAll('.tab-item').forEach(tab => {
     tab.addEventListener('click', () => {
       const type = tab.dataset.tab;
@@ -427,17 +495,20 @@ function initBottomTabs() {
         openSubView('⚙️ 시스템 설정', `
           <div class="rank-item"><span>실시간 위험 알림 푸시</span><input type="checkbox" checked style="accent-color:#00b894;"></div>
           <div class="rank-item"><span>지도 고화질 모드</span><input type="checkbox" checked style="accent-color:#00b894;"></div>
-          <div class="rank-item"><span>앱 버전</span><span style="color:#64748b;">v2.4.0 (최신)</span></div>
+          <div class="rank-item"><span>앱 버전</span><span style="color:#64748b;">v2.5.0 (최신)</span></div>
         `);
       }
     });
   });
 
-  // FAB 제보 버튼
-  document.getElementById('btnOpenReportSheet').addEventListener('click', openReportSheet);
-  document.getElementById('btnCloseReportSheet').addEventListener('click', closeReportSheet);
+  // 모바일 제보 열기
+  document.getElementById('btnOpenReportSheet').addEventListener('click', openReportModal);
+  document.getElementById('btnCloseReportSheet').addEventListener('click', closeReportModal);
 
-  // 길찾기 버튼
+  // PC 제보 열기
+  document.getElementById('btnDesktopReport').addEventListener('click', openReportModal);
+
+  // 모바일 길찾기 열기
   document.getElementById('btnOpenRouteModal').addEventListener('click', openRouteModal);
   document.getElementById('btnCloseRouteModal').addEventListener('click', closeRouteModal);
 
@@ -445,32 +516,69 @@ function initBottomTabs() {
   document.getElementById('btnCloseSubView').addEventListener('click', () => {
     closeSubView();
     document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
-    document.querySelector('.tab-item[data-tab="map"]').classList.add('active');
+    document.querySelector('.tab-item[data-tab="map"]')?.classList.add('active');
+  });
+
+  // 모바일 길찾기 제출
+  document.getElementById('mobileRouteForm').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const sName = document.getElementById('mStartInput').value;
+    const eName = document.getElementById('mEndInput').value;
+    const sLat = parseFloat(document.getElementById('mStartLat').value);
+    const sLon = parseFloat(document.getElementById('mStartLon').value);
+    const eLat = parseFloat(document.getElementById('mEndLat').value);
+    const eLon = parseFloat(document.getElementById('mEndLon').value);
+    runPedestrianRoute(sName, eName, sLat, sLon, eLat, eLon, false);
+  });
+
+  // PC 길찾기 제출
+  document.getElementById('desktopRouteForm').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const sName = document.getElementById('dStartInput').value;
+    const eName = document.getElementById('dEndInput').value;
+    const sLat = parseFloat(document.getElementById('dStartLat').value);
+    const sLon = parseFloat(document.getElementById('dStartLon').value);
+    const eLat = parseFloat(document.getElementById('dEndLat').value);
+    const eLon = parseFloat(document.getElementById('dEndLon').value);
+    runPedestrianRoute(sName, eName, sLat, sLon, eLat, eLon, true);
   });
 }
 
 // ==========================================
-// 9. 앱 가동
+// 10. 앱 부팅
 // ==========================================
 function startApp() {
   initMap();
   initFilterEvents();
+  initDesktopSidebar();
   initMediaControls();
-  initBottomTabs();
+  initTabEvents();
 
-  setupPoi('startInput', 'startPoiList', (lat, lon) => {
-    document.getElementById('startLat').value = lat;
-    document.getElementById('startLon').value = lon;
+  // POI 자동완성 연결 (모바일 & PC)
+  setupPoi('mStartInput', 'mStartPoiList', (lat, lon) => {
+    document.getElementById('mStartLat').value = lat;
+    document.getElementById('mStartLon').value = lon;
+  });
+  setupPoi('mEndInput', 'mEndPoiList', (lat, lon) => {
+    document.getElementById('mEndLat').value = lat;
+    document.getElementById('mEndLon').value = lon;
+  });
+  setupPoi('dStartInput', 'dStartPoiList', (lat, lon) => {
+    document.getElementById('dStartLat').value = lat;
+    document.getElementById('dStartLon').value = lon;
+  });
+  setupPoi('dEndInput', 'dEndPoiList', (lat, lon) => {
+    document.getElementById('dEndLat').value = lat;
+    document.getElementById('dEndLon').value = lon;
   });
 
-  setupPoi('endInput', 'endPoiList', (lat, lon) => {
-    document.getElementById('endLat').value = lat;
-    document.getElementById('endLon').value = lon;
-  });
-
-  document.getElementById('btnGpsStart').addEventListener('click', moveToCurrentGps);
-  document.getElementById('routeForm').addEventListener('submit', searchPedestrianRoute);
+  document.getElementById('btnMobileGps').addEventListener('click', moveToCurrentGps);
+  document.getElementById('btnDesktopGps').addEventListener('click', moveToCurrentGps);
   document.getElementById('complaintForm').addEventListener('submit', handleComplaintSubmit);
+
+  window.addEventListener('resize', () => {
+    if (map) map.invalidateSize();
+  });
 }
 
 if (document.readyState === 'loading') {
