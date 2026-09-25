@@ -1,0 +1,14 @@
+{
+  "name": "road-safety-control",
+  "version": "1.0.0",
+  "description": "도로 안전 통합 관제 & 보행자 경로 안내",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2"
+  }
+}
