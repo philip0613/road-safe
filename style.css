@@ -39,7 +39,7 @@ body {
   font-weight: 600;
 }
 
-/* 대시보드 그리드 */
+/* 대시보드 2열 레이아웃 */
 .dashboard-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -153,7 +153,7 @@ body {
   background-color: #1e293b;
   border: 1px solid #475569;
   border-radius: 6px;
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.6);
   max-height: 220px;
   overflow-y: auto;
   z-index: 1000;
@@ -189,7 +189,7 @@ body {
   color: #94a3b8;
 }
 
-/* 액션 버튼 그룹 */
+/* 액션 버튼 */
 .action-buttons-row {
   display: flex;
   gap: 8px;
@@ -247,29 +247,45 @@ body {
   background-color: #059669;
 }
 
-/* 카메라/사진첩 분리 버튼 */
+/* 카메라 / 갤러리 선택용 네이티브 라벨 버튼 */
 .media-btn-group {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 8px;
+  gap: 10px;
 }
 
-.btn-media {
+.btn-media-label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   background-color: #334155;
   color: #f8fafc;
   border: 1px dashed #64748b;
-  padding: 10px;
+  padding: 12px;
   border-radius: 6px;
-  font-size: 0.85rem;
+  font-size: 0.88rem;
   font-weight: 600;
   cursor: pointer;
+  text-align: center;
   transition: background-color 0.2s, border-color 0.2s;
 }
 
-.btn-media:hover {
+.btn-media-label:hover {
   background-color: #475569;
   border-color: #38bdf8;
   color: #38bdf8;
+}
+
+/* 숨김 파일 인풋 (화면엔 안 보이지만 브라우저 엔진 트리에는 유지) */
+.hidden-file-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
 }
 
 /* 사진 미리보기 박스 */
@@ -279,7 +295,7 @@ body {
   border: 1px solid #475569;
   border-radius: 6px;
   overflow: hidden;
-  max-height: 150px;
+  max-height: 160px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -287,7 +303,7 @@ body {
 
 .preview-box img {
   width: 100%;
-  height: 150px;
+  height: 160px;
   object-fit: cover;
 }
 
@@ -304,30 +320,32 @@ body {
   cursor: pointer;
 }
 
-/* 지도 및 HUD 래퍼 */
+/* 지도 영역 (명시적 높이 지정으로 빈 화면 차단) */
 .map-wrapper {
   position: relative;
   border: 1px solid #334155;
   border-radius: 8px;
   overflow: hidden;
-  height: 300px;
+  height: 340px;
+  background-color: #1e293b;
 }
 
 .interactive-map {
   width: 100%;
-  height: 100%;
+  height: 340px !important;
+  min-height: 340px;
   z-index: 1;
 }
 
-/* 네비게이션 HUD */
+/* 네비게이션 안내 HUD */
 .navi-hud {
   position: absolute;
   top: 10px;
   left: 10px;
   right: 10px;
-  background: rgba(15, 23, 42, 0.92);
+  background: rgba(15, 23, 42, 0.94);
   border: 1px solid #38bdf8;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
   border-radius: 8px;
   padding: 10px 14px;
   z-index: 500;
@@ -363,28 +381,17 @@ body {
   color: #475569;
 }
 
-/* 마커 스타일 */
+/* 네비 마커 펄스 효과 */
 .user-marker-pulse {
-  width: 20px;
-  height: 20px;
+  width: 22px;
+  height: 22px;
   background-color: #38bdf8;
   border: 3px solid #ffffff;
   border-radius: 50%;
   box-shadow: 0 0 12px #38bdf8;
 }
 
-.pin-label {
-  background: #1e293b;
-  color: #ffffff;
-  border: 1px solid #475569;
-  border-radius: 4px;
-  padding: 2px 6px;
-  font-size: 0.75rem;
-  font-weight: 700;
-  white-space: nowrap;
-}
-
-/* 상세 안내 리스트 */
+/* 경로 안내 리스트 */
 .route-steps-container {
   display: flex;
   flex-direction: column;
@@ -425,7 +432,7 @@ body {
   min-width: 18px;
 }
 
-/* 민원 리스트 및 카드 */
+/* 민원 목록 & 카드 */
 .complaints-list-container {
   display: flex;
   flex-direction: column;
