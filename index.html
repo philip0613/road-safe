@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>도로 안전 통합 관제 & 보행자 내비게이션</title>
-  <!-- 안정적인 CDNJS Leaflet 지도 엔진 -->
+  <!-- 지도 스타일 -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
   <link rel="stylesheet" href="style.css">
 </head>
@@ -17,7 +17,7 @@
   </header>
 
   <main class="dashboard-grid">
-    <!-- 좌측 패널: Tmap 보행자 실시간 내비게이션 및 지도 -->
+    <!-- 좌측 패널: Tmap 보행자 내비게이션 및 지도 -->
     <section class="panel left-panel">
       <div class="panel-header">
         <h2>보행자 실시간 내비게이션</h2>
@@ -48,25 +48,26 @@
 
         <div class="action-buttons-row">
           <button type="submit" id="searchRouteBtn" class="btn btn-primary">보행자 경로 탐색</button>
-          <button type="button" id="startSimBtn" class="btn btn-simulate" style="display: none;">모의 주행 (테스트)</button>
-          <button type="button" id="startNaviBtn" class="btn btn-navi" style="display: none;">실시간 네비 시작</button>
+          <button type="button" id="startSimBtn" class="btn btn-simulate">모의 주행 (테스트)</button>
+          <button type="button" id="startNaviBtn" class="btn btn-navi">실시간 네비 시작</button>
         </div>
       </form>
 
-      <!-- 인터랙티브 지도 & 실시간 턴 안내 HUD -->
-      <div class="map-wrapper">
+      <!-- 지도 뷰어 및 네비게이션 HUD -->
+      <div class="map-wrapper" id="mapWrapper">
         <div id="map" class="interactive-map"></div>
+        <canvas id="fallbackCanvas" class="fallback-canvas" style="display: none;"></canvas>
 
-        <!-- 실시간 네비게이션 안내 HUD -->
-        <div id="naviHud" class="navi-hud" style="display: none;">
+        <!-- 실시간 네비 HUD -->
+        <div id="naviHud" class="navi-hud">
           <div class="hud-main">
             <span class="hud-icon">🚶</span>
-            <div class="hud-instruction" id="hudInstruction">경로를 따라 이동하세요</div>
+            <div class="hud-instruction" id="hudInstruction">출발 준비 완료: 경로를 탐색해 보세요</div>
           </div>
           <div class="hud-sub">
-            <span id="hudRemainDistance">남은 거리: -</span>
+            <span id="hudRemainDistance">남은 거리: 850m</span>
             <span class="divider">|</span>
-            <span id="hudRemainTime">남은 시간: -</span>
+            <span id="hudRemainTime">남은 시간: 약 12분</span>
           </div>
         </div>
       </div>
@@ -74,7 +75,7 @@
       <div class="route-steps-container">
         <h3>주요 경로 안내 목록</h3>
         <ul id="routeStepsList" class="step-list">
-          <li class="empty-state">경로 탐색 버튼을 누르면 턴바이턴 안내가 시작됩니다.</li>
+          <li class="empty-state">경로 탐색 버튼을 누르면 단계별 이동 안내가 표시됩니다.</li>
         </ul>
       </div>
     </section>
@@ -86,23 +87,18 @@
       </div>
 
       <form id="complaintForm" class="control-form" autocomplete="off">
-        <!-- 네이티브 label 연동 카메라/사진첩 선택 버튼 -->
         <div class="input-group">
           <label>현장 사진 등록 (필수)</label>
           <div class="media-btn-group">
-            <label for="cameraInput" class="btn-media-label">
-              📷 카메라 직접 촬영
-            </label>
-            <label for="galleryInput" class="btn-media-label">
-              🖼️ 사진첩에서 선택
-            </label>
+            <button type="button" id="btnTriggerCamera" class="btn btn-media">📷 카메라 직접 촬영</button>
+            <button type="button" id="btnTriggerGallery" class="btn btn-media">🖼️ 사진첩에서 선택</button>
           </div>
-          <!-- 네이티브 파일/카메라 인풋 -->
-          <input type="file" id="cameraInput" accept="image/*" capture="environment" class="hidden-file-input">
-          <input type="file" id="galleryInput" accept="image/*" class="hidden-file-input">
+          <!-- 실제 인풋들 -->
+          <input type="file" id="cameraInput" accept="image/*" capture="environment" style="display: none;">
+          <input type="file" id="galleryInput" accept="image/*" style="display: none;">
         </div>
 
-        <!-- 이미지 미리보기 영역 -->
+        <!-- 이미지 미리보기 -->
         <div id="previewContainer" class="preview-box" style="display: none;">
           <img id="imagePreview" alt="업로드 이미지 미리보기">
           <button type="button" id="removeImgBtn" class="btn-remove">사진 제거</button>
@@ -113,8 +109,8 @@
           <label for="complaintLocation">발생 위치 (검색 또는 지도 클릭)</label>
           <input type="text" id="complaintLocation" placeholder="주소나 장소명을 입력하세요 (예: 시청역)" value="시청역 4번 출구 앞" required>
           <ul id="complaintPoiList" class="poi-dropdown"></ul>
-          <input type="hidden" id="complaintLat">
-          <input type="hidden" id="complaintLon">
+          <input type="hidden" id="complaintLat" value="37.5665">
+          <input type="hidden" id="complaintLon" value="126.9780">
         </div>
 
         <div class="input-group">
@@ -137,7 +133,20 @@
     </section>
   </main>
 
-  <!-- Leaflet 지도 JS & 애플리케이션 JS -->
+  <!-- PC 환경용 웹캠 실시간 캡처 모달 레이어 -->
+  <div id="webcamModal" class="modal-backdrop" style="display: none;">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>현장 웹캠 촬영</h3>
+        <button type="button" id="btnWebcamClose" class="modal-close">&times;</button>
+      </div>
+      <video id="webcamVideo" autoplay playsinline class="webcam-feed"></video>
+      <div class="modal-actions">
+        <button type="button" id="btnWebcamSnap" class="btn btn-primary">📸 촬영하기</button>
+      </div>
+    </div>
+  </div>
+
   <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
   <script src="app.js"></script>
 </body>
