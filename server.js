@@ -10,12 +10,12 @@ const PORT = process.env.PORT || 3000;
 const TMAP_APP_KEY = process.env.TMAP_APP_KEY || 'YEWVxfrK4j8xTNQZURJ4z1Te4JTZs26v45fgmfn7';
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || 'AQ.Ab8RN6J3dukN_07G3h0hTGxacIAinSCW1LKJ1i63VHbxPNgLAg';
 
-// 미들웨어 (대용량 사진 업로드 허용)
+// 미들웨어
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-// 1. TMAP 장소(POI) 통합 검색 프록시
+// 1. TMAP POI 검색 프록시
 app.get('/api/poi', async (req, res) => {
   const { keyword } = req.query;
   if (!keyword || keyword.trim().length < 2) {
@@ -45,12 +45,19 @@ app.get('/api/poi', async (req, res) => {
     const data = await response.json();
     const pois = data.searchPoiInfo?.pois?.poi || [];
 
-    const results = pois.map(item => ({
-      name: item.name,
-      address: `${item.upperAddrName || ''} ${item.middleAddrName \vert{}\vert{} ''}${item.roadName ? item.roadName + ' ' + (item.firstBuildNo || '') : item.lowerAddrName || ''}`.trim(),
-      lat: parseFloat(item.frontLat || item.noorLat),
-      lon: parseFloat(item.frontLon || item.noorLon)
-    }));
+    const results = pois.map(item => {
+      const upper = item.upperAddrName || '';
+      const middle = item.middleAddrName || '';
+      const road = item.roadName ? `${item.roadName}${item.firstBuildNo || ''}` : (item.lowerAddrName || '');
+      const fullAddr = `${upper} ${middle}${road}`.trim();
+
+      return {
+        name: item.name,
+        address: fullAddr,
+        lat: parseFloat(item.frontLat || item.noorLat),
+        lon: parseFloat(item.frontLon || item.noorLon)
+      };
+    });
 
     res.json(results);
   } catch (err) {
@@ -133,11 +140,10 @@ app.post('/api/analyze', async (req, res) => {
         return res.json(JSON.parse(cleaned));
       }
     } catch (e) {
-      console.warn(`모델 ${model} 실패, 다음 시도:`, e.message);
+      console.warn(`모델 ${model} 실패:`, e.message);
     }
   }
 
-  // 기본 폴백 응답
   res.json({
     riskLevel: '주의',
     category: '포트홀',
@@ -147,17 +153,17 @@ app.post('/api/analyze', async (req, res) => {
   });
 });
 
-// 정적 파일 서빙 폴백 (SPA 라우팅)
+// 정적 파일 서빙 폴백
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// 로컬 환경에서만 listen 실행
+// 로컬 환경 실행
 if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {
   app.listen(PORT, () => {
     console.log(`로컬 서버 실행 중: http://localhost:${PORT}`);
   });
 }
 
-// Vercel 서버리스용 모듈 내보내기
+// Vercel 서버리스 모듈 내보내기
 module.exports = app;
