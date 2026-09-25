@@ -4,53 +4,48 @@
 const TMAP_APP_KEY = 'YEWVxfrK4j8xTNQZURJ4z1Te4JTZs26v45fgmfn7';
 const GEMINI_API_KEY = 'AQ.Ab8RN6J3dukN_07G3h0hTGxacIAinSCW1LKJ1i63VHbxPNgLAg';
 
-// 지도 및 네비게이션 관리 객체
+// 지도 및 데이터 관리
 let map = null;
+let routePolyline = null;
 let startMarker = null;
 let endMarker = null;
-let userMarker = null;
 let complaintMarkers = [];
 
-// 네비게이션 경로 관리
-let fullRouteCoords = [];       // 전체 경로 [[lat, lon], ...]
-let remainingRouteCoords = [];  // 남은 경로 [[lat, lon], ...]
-let routePolyline = null;        // 남은 경로선 (시안 블루)
-let passedPolyline = null;       // 지나온 경로선 (반투명 회색)
-let guidePoints = [];            // 단계별 안내 지점
-let simInterval = null;          // 모의 주행 타이머
-let watchId = null;              // 실시간 GPS 감시 ID
-
-// 이미지 처리 데이터
 let currentBase64Image = null;
 let currentMimeType = null;
 let complaintsData = [];
 
 // ==========================================
-// 2. OpenStreetMap 지도 초기화 (Leaflet)
+// 2. OpenStreetMap 지도 초기화
 // ==========================================
 function initMap() {
   const mapEl = document.getElementById('map');
   if (!mapEl) return;
 
-  // 서울역 중심 초기화
+  if (typeof L === 'undefined') {
+    mapEl.innerHTML = '<div style="color:#ef4444; padding:20px; text-align:center;">지도 엔진을 불러오는 중입니다. 잠시 후 새로고침해 주세요.</div>';
+    return;
+  }
+
+  // 서울역 중심 생성
   map = L.map('map', {
     zoomControl: true
   }).setView([37.5565, 126.9740], 15);
 
-  // 글로벌 표준 오픈스트리트맵 타일
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  // 글로벌 표준 OpenStreetMap 타일
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
     maxZoom: 19,
     attribution: '&copy; OpenStreetMap'
   }).addTo(map);
 
-  // 지도 클릭 시 민원 발생 위치 지정
+  // 지도 클릭 시 민원 발생 위치 자동 지정
   map.on('click', (e) => {
     setComplaintCoords(e.latlng.lat, e.latlng.lng, `선택 위치 (${e.latlng.lat.toFixed(4)},${e.latlng.lng.toFixed(4)})`);
   });
 
-  // 지도 크기 자동 재보정 (회색/빈 화면 차단)
-  setTimeout(() => map.invalidateSize(), 200);
-  setTimeout(() => map.invalidateSize(), 600);
+  // 렌더링 타이밍 보정 (검은 화면 방지)
+  setTimeout(() => map.invalidateSize(), 150);
+  setTimeout(() => map.invalidateSize(), 500);
 }
 
 function createPinIcon(type, emoji) {
@@ -68,7 +63,6 @@ function createPinIcon(type, emoji) {
 // ==========================================
 async function searchPedestrianRoute(e) {
   if (e) e.preventDefault();
-  stopNavigation();
 
   const startName = document.getElementById('startInput').value.trim();
   const endName = document.getElementById('endInput').value.trim();
@@ -79,7 +73,7 @@ async function searchPedestrianRoute(e) {
 
   const searchBtn = document.getElementById('searchRouteBtn');
   searchBtn.disabled = true;
-  searchBtn.textContent = 'TMAP 경로 계산 중...';
+  searchBtn.textContent = '보행자 경로 계산 중...';
 
   const payload = {
     startX: startLon.toString(),
@@ -102,11 +96,11 @@ async function searchPedestrianRoute(e) {
       body: JSON.stringify(payload)
     });
 
-    if (!res.ok) throw new Error(`TMAP 오류 (${res.status})`);
+    if (!res.ok) throw new Error(`TMAP API 응답 오류 (${res.status})`);
     const data = await res.json();
     renderRoute(data, startLat, startLon, endLat, endLon, startName, endName);
   } catch (err) {
-    console.warn('API 응답 불가 시 모의 보행자 경로로 전환:', err);
+    console.warn('API 응답 불가 시 모의 경로로 표시:', err);
     renderFallbackRoute(startLat, startLon, endLat, endLon, startName, endName);
   } finally {
     searchBtn.disabled = false;
@@ -115,56 +109,52 @@ async function searchPedestrianRoute(e) {
 }
 
 function renderRoute(data, sLat, sLon, eLat, eLon, sName, eName) {
-  fullRouteCoords = [];
-  guidePoints = [];
+  const coords = [];
+  const steps = [];
 
   const features = data.features || [];
   features.forEach(f => {
     if (f.geometry.type === 'LineString') {
-      f.geometry.coordinates.forEach(pt => fullRouteCoords.push([pt[1], pt[0]]));
+      f.geometry.coordinates.forEach(pt => coords.push([pt[1], pt[0]]));
     } else if (f.geometry.type === 'Point' && f.properties.description) {
-      guidePoints.push({
-        lat: f.geometry.coordinates[1],
-        lon: f.geometry.coordinates[0],
-        desc: f.properties.description
-      });
+      steps.push(f.properties.description);
     }
   });
 
-  const totalDist = features[0]?.properties?.totalDistance || Math.round(fullRouteCoords.length * 30);
-  const totalTime = Math.round((features[0]?.properties?.totalTime || 0) / 60) || Math.ceil(fullRouteCoords.length * 0.6);
+  const totalDist = features[0]?.properties?.totalDistance || Math.round(coords.length * 30);
+  const totalTime = Math.round((features[0]?.properties?.totalTime || 0) / 60) || Math.ceil(coords.length * 0.6);
 
-  setupNavigationPaths(fullRouteCoords, guidePoints, totalDist, totalTime, sLat, sLon, eLat, eLon, sName, eName);
+  drawRouteOnMap(coords, steps, totalDist, totalTime, sLat, sLon, eLat, eLon, sName, eName);
 }
 
 function renderFallbackRoute(sLat, sLon, eLat, eLon, sName, eName) {
-  fullRouteCoords = [];
+  const coords = [];
   const count = 16;
   for (let i = 0; i <= count; i++) {
     const r = i / count;
     const curve = Math.sin(r * Math.PI) * 0.002;
-    fullRouteCoords.push([sLat + (eLat - sLat) * r + curve, sLon + (eLon - sLon) * r]);
+    coords.push([sLat + (eLat - sLat) * r + curve, sLon + (eLon - sLon) * r]);
   }
-  guidePoints = [
-    { desc: `${sName} 방면 횡단보도 진입` },
-    { desc: '보행자 전용 도로를 따라 직진' },
-    { desc: '지하보도 및 건널목 통과' },
-    { desc: `${eName} 도착` }
+  const steps = [
+    `${sName} 방면 횡단보도 진입`,
+    '보행자 전용 도로를 따라 직진',
+    '지하보도 및 건널목 통과',
+    `${eName} 도착`
   ];
-  setupNavigationPaths(fullRouteCoords, guidePoints, Math.round(fullRouteCoords.length * 45), Math.ceil(fullRouteCoords.length * 0.7), sLat, sLon, eLat, eLon, sName, eName);
+  drawRouteOnMap(coords, steps, Math.round(coords.length * 50), Math.ceil(coords.length * 0.7), sLat, sLon, eLat, eLon, sName, eName);
 }
 
-function setupNavigationPaths(coords, guides, dist, time, sLat, sLon, eLat, eLon, sName, eName) {
-  remainingRouteCoords = [...coords];
-
+function drawRouteOnMap(coords, steps, dist, time, sLat, sLon, eLat, eLon, sName, eName) {
   if (routePolyline) map.removeLayer(routePolyline);
-  if (passedPolyline) map.removeLayer(passedPolyline);
   if (startMarker) map.removeLayer(startMarker);
   if (endMarker) map.removeLayer(endMarker);
 
-  // 지나온 길(회색)과 남은 길(선명한 파란색)
-  passedPolyline = L.polyline([], { color: '#64748b', weight: 5, opacity: 0.5 }).addTo(map);
-  routePolyline = L.polyline(remainingRouteCoords, { color: '#2563eb', weight: 6, opacity: 0.9 }).addTo(map);
+  // 파란색 보행자 경로선
+  routePolyline = L.polyline(coords, {
+    color: '#2563eb',
+    weight: 6,
+    opacity: 0.85
+  }).addTo(map);
 
   startMarker = L.marker([sLat, sLon], { icon: createPinIcon('start', '출') })
     .addTo(map)
@@ -176,140 +166,22 @@ function setupNavigationPaths(coords, guides, dist, time, sLat, sLon, eLat, eLon
 
   map.fitBounds(routePolyline.getBounds(), { padding: [40, 40] });
 
-  // HUD 정보 업데이트
-  document.getElementById('hudRemainDistance').textContent = `남은 거리: ${dist >= 1000 ? (dist/1000).toFixed(2) + 'km' : dist + 'm'}`;
-  document.getElementById('hudRemainTime').textContent = `남은 시간: 약 ${time}분`;
-  document.getElementById('hudInstruction').textContent = guides[0]?.desc || '안내 경로를 따라 이동하세요';
-  document.getElementById('naviHud').style.display = 'flex';
+  // 요약 정보 갱신
+  document.getElementById('summaryDistance').textContent = dist >= 1000 ? `${(dist / 1000).toFixed(2)} km` : `${dist} m`;
+  document.getElementById('summaryTime').textContent = `${time}분`;
+  document.getElementById('routeSummary').style.display = 'grid';
 
-  // 단계별 텍스트 안내 렌더링
-  document.getElementById('routeStepsList').innerHTML = guides.map((g, idx) => `
+  // 안내 목록 렌더링
+  document.getElementById('routeStepsList').innerHTML = steps.map((s, idx) => `
     <li class="step-item">
       <span class="step-index">${idx + 1}</span>
-      <span class="step-desc">${g.desc}</span>
+      <span class="step-desc">${s}</span>
     </li>
   `).join('');
-
-  // 네비 버튼 활성화
-  document.getElementById('startSimBtn').style.display = 'inline-block';
-  document.getElementById('startNaviBtn').style.display = 'inline-block';
 }
 
 // ==========================================
-// 4. 실시간 보행자 네비 엔진 (지나온 길 실시간 삭제)
-// ==========================================
-function updateNavigationProgress(currentLat, currentLon) {
-  if (remainingRouteCoords.length === 0) return;
-
-  // 내 위치 펄스 마커 표시 및 갱신
-  if (!userMarker) {
-    const pulseIcon = L.divIcon({
-      className: 'user-marker-pulse',
-      iconSize: [22, 22],
-      iconAnchor: [11, 11]
-    });
-    userMarker = L.marker([currentLat, currentLon], { icon: pulseIcon }).addTo(map);
-  } else {
-    userMarker.setLatLng([currentLat, currentLon]);
-  }
-
-  // 현재 위치와 가장 인접한 경로 인덱스 탐색
-  let closestIdx = 0;
-  let minDist = Infinity;
-
-  remainingRouteCoords.forEach((pt, idx) => {
-    const d = Math.hypot(pt[0] - currentLat, pt[1] - currentLon);
-    if (d < minDist) {
-      minDist = d;
-      closestIdx = idx;
-    }
-  });
-
-  // 지나온 길은 잘라내고 남은 길만 업데이트 (실시간 경로 삭제 효과!)
-  if (closestIdx > 0) {
-    remainingRouteCoords = remainingRouteCoords.slice(closestIdx);
-    passedPolyline.addLatLng([currentLat, currentLon]);
-    routePolyline.setLatLngs(remainingRouteCoords);
-  }
-
-  // HUD 안내 갱신
-  const remainDist = Math.round(remainingRouteCoords.length * 28);
-  document.getElementById('hudRemainDistance').textContent = `남은 거리: ${remainDist}m`;
-
-  if (guidePoints.length > 0) {
-    const progressRatio = 1 - (remainingRouteCoords.length / fullRouteCoords.length);
-    const guideIdx = Math.min(Math.floor(progressRatio * guidePoints.length), guidePoints.length - 1);
-    document.getElementById('hudInstruction').textContent = guidePoints[guideIdx]?.desc || '직진하세요';
-  }
-
-  if (remainingRouteCoords.length <= 1) {
-    document.getElementById('hudInstruction').textContent = '🎉 목적지에 도착했습니다!';
-    stopNavigation();
-  }
-}
-
-// 모의 주행 (실내 테스트용)
-function startSimulation() {
-  stopNavigation();
-  if (fullRouteCoords.length === 0) return;
-
-  remainingRouteCoords = [...fullRouteCoords];
-  routePolyline.setLatLngs(remainingRouteCoords);
-  passedPolyline.setLatLngs([]);
-
-  let step = 0;
-  const simBtn = document.getElementById('startSimBtn');
-  simBtn.textContent = '모의 주행 중지';
-
-  simInterval = setInterval(() => {
-    if (step >= fullRouteCoords.length) {
-      stopNavigation();
-      return;
-    }
-    const [lat, lon] = fullRouteCoords[step];
-    map.panTo([lat, lon], { animate: true, duration: 0.3 });
-    updateNavigationProgress(lat, lon);
-    step++;
-  }, 450);
-}
-
-// 실시간 GPS 내비게이션
-function startRealtimeNavigation() {
-  stopNavigation();
-  if (!navigator.geolocation) {
-    alert('GPS를 지원하지 않는 브라우저입니다.');
-    return;
-  }
-
-  const naviBtn = document.getElementById('startNaviBtn');
-  naviBtn.textContent = '실시간 네비 중지';
-
-  watchId = navigator.geolocation.watchPosition(
-    (pos) => {
-      const { latitude, longitude } = pos.coords;
-      map.setView([latitude, longitude], 17);
-      updateNavigationProgress(latitude, longitude);
-    },
-    (err) => console.warn('GPS 오류:', err),
-    { enableHighAccuracy: true, maximumAge: 1000 }
-  );
-}
-
-function stopNavigation() {
-  if (simInterval) {
-    clearInterval(simInterval);
-    simInterval = null;
-    document.getElementById('startSimBtn').textContent = '모의 주행 (테스트)';
-  }
-  if (watchId) {
-    navigator.geolocation.clearWatch(watchId);
-    watchId = null;
-    document.getElementById('startNaviBtn').textContent = '실시간 네비 시작';
-  }
-}
-
-// ==========================================
-// 5. 지도 위 민원 마커 표시
+// 4. 지도 위 민원 마커 표시
 // ==========================================
 function addComplaintMarkerToMap(complaint) {
   let pinType = 'normal';
@@ -326,7 +198,7 @@ function addComplaintMarkerToMap(complaint) {
       <b style="color: ${complaint.riskLevel === '긴급' ? '#dc2626' : '#d97706'}">[${complaint.riskLevel}]${complaint.category}</b><br>
       <b>위치:</b> ${complaint.location}<br>
       <b>요약:</b> ${complaint.summary}<br>
-      <b>조치:</b> ${complaint.action}
+      <b>조치 권고:</b> ${complaint.action}
     </div>
   `);
 
@@ -344,7 +216,7 @@ window.focusComplaintOnMap = function(id) {
 };
 
 // ==========================================
-// 6. TMAP POI 실시간 검색 & 자동완성
+// 5. TMAP POI 실시간 검색 & 자동완성
 // ==========================================
 async function searchTmapPoi(keyword) {
   if (!keyword || keyword.trim().length < 2) return [];
@@ -431,14 +303,11 @@ function setComplaintCoords(lat, lon, label) {
 }
 
 // ==========================================
-// 7. 카메라 & 사진첩 파일 제어
+// 6. 카메라 & 사진첩 파일 제어
 // ==========================================
 function initMediaControls() {
   const cameraInput = document.getElementById('cameraInput');
   const galleryInput = document.getElementById('galleryInput');
-
-  document.getElementById('btnCamera').addEventListener('click', () => cameraInput.click());
-  document.getElementById('btnGallery').addEventListener('click', () => galleryInput.click());
 
   [cameraInput, galleryInput].forEach(input => {
     input.addEventListener('change', (e) => {
@@ -471,7 +340,7 @@ function initMediaControls() {
 }
 
 // ==========================================
-// 8. Gemini Vision AI 판독 & 민원 등록
+// 7. Gemini Vision AI 판독 & 민원 등록
 // ==========================================
 async function analyzeImageWithGemini(base64, mime, location, notes) {
   const prompt = `너는 도로 안전 관제 센터의 AI 비전 판독관이다.
@@ -607,7 +476,7 @@ function renderComplaints() {
 }
 
 // ==========================================
-// 9. 시스템 가동
+// 8. 초기 이벤트 등록
 // ==========================================
 window.addEventListener('DOMContentLoaded', () => {
   initMap();
@@ -646,14 +515,6 @@ window.addEventListener('DOMContentLoaded', () => {
   });
 
   document.getElementById('routeForm').addEventListener('submit', searchPedestrianRoute);
-  document.getElementById('startSimBtn').addEventListener('click', () => {
-    if (simInterval) stopNavigation();
-    else startSimulation();
-  });
-  document.getElementById('startNaviBtn').addEventListener('click', () => {
-    if (watchId) stopNavigation();
-    else startRealtimeNavigation();
-  });
   document.getElementById('complaintForm').addEventListener('submit', handleComplaintSubmit);
 
   window.addEventListener('resize', () => {
