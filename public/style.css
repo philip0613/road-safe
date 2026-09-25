@@ -2,6 +2,7 @@
   box-sizing: border-box;
   margin: 0;
   padding: 0;
+  -webkit-tap-highlight-color: transparent;
 }
 
 body {
@@ -10,12 +11,17 @@ body {
   color: #e2e8f0;
   line-height: 1.5;
   min-height: 100vh;
+  padding-bottom: env(safe-area-inset-bottom);
 }
 
+/* 상단 헤더 */
 .dashboard-header {
   background-color: #1e293b;
   border-bottom: 1px solid #334155;
-  padding: 14px 24px;
+  padding: 12px 20px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
 }
 
 .header-container {
@@ -27,36 +33,66 @@ body {
 }
 
 .dashboard-header h1 {
-  font-size: 1.2rem;
+  font-size: 1.1rem;
   font-weight: 700;
   color: #f8fafc;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .status-indicator {
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   color: #38bdf8;
   font-weight: 600;
+  white-space: nowrap;
 }
 
+/* 모바일 전용 탭 바 (기본 숨김) */
+.mobile-tab-nav {
+  display: none;
+  background-color: #0f172a;
+  padding: 8px 14px;
+  border-bottom: 1px solid #334155;
+  position: sticky;
+  top: 53px;
+  z-index: 99;
+  gap: 8px;
+}
+
+.tab-btn {
+  flex: 1;
+  padding: 10px;
+  border: 1px solid #334155;
+  background-color: #1e293b;
+  color: #94a3b8;
+  font-size: 0.9rem;
+  font-weight: 700;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.tab-btn.active {
+  background-color: #0284c7;
+  color: #ffffff;
+  border-color: #38bdf8;
+}
+
+/* 데스크톱 그리드 레이아웃 */
 .dashboard-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 20px;
   max-width: 1600px;
-  margin: 20px auto;
-  padding: 0 20px;
-}
-
-@media (max-width: 1024px) {
-  .dashboard-grid {
-    grid-template-columns: 1fr;
-  }
+  margin: 16px auto;
+  padding: 0 16px;
 }
 
 .panel {
   background-color: #1e293b;
   border: 1px solid #334155;
-  border-radius: 10px;
+  border-radius: 12px;
   padding: 18px;
   display: flex;
   flex-direction: column;
@@ -73,6 +109,7 @@ body {
   color: #38bdf8;
 }
 
+/* 폼 컨트롤 */
 .control-form {
   display: flex;
   flex-direction: column;
@@ -82,7 +119,7 @@ body {
 .input-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12px;
+  gap: 10px;
 }
 
 .input-group {
@@ -98,14 +135,15 @@ body {
   font-weight: 600;
 }
 
+/* 모바일 자동확대 방지: font-size 16px */
 .input-group input[type="text"],
 .input-group textarea {
   background-color: #0f172a;
   border: 1px solid #475569;
-  border-radius: 6px;
-  padding: 8px 12px;
+  border-radius: 8px;
+  padding: 10px 12px;
   color: #f8fafc;
-  font-size: 0.9rem;
+  font-size: 16px;
   width: 100%;
 }
 
@@ -125,12 +163,22 @@ body {
   background-color: #334155;
   border: 1px solid #475569;
   color: #38bdf8;
-  border-radius: 6px;
-  padding: 0 10px;
-  font-size: 0.75rem;
+  border-radius: 8px;
+  padding: 0 12px;
+  font-size: 0.85rem;
   font-weight: 600;
   cursor: pointer;
   white-space: nowrap;
+  min-height: 42px;
+}
+
+.btn-inline:active {
+  background-color: #475569;
+}
+
+/* POI 자동완성 드롭다운 */
+.autocomplete-wrapper {
+  position: relative;
 }
 
 .poi-dropdown {
@@ -140,7 +188,7 @@ body {
   right: 0;
   background-color: #1e293b;
   border: 1px solid #475569;
-  border-radius: 6px;
+  border-radius: 8px;
   box-shadow: 0 10px 20px rgba(0, 0, 0, 0.6);
   max-height: 220px;
   overflow-y: auto;
@@ -151,7 +199,7 @@ body {
 }
 
 .poi-item {
-  padding: 8px 12px;
+  padding: 10px 14px;
   border-bottom: 1px solid #334155;
   cursor: pointer;
   display: flex;
@@ -162,29 +210,34 @@ body {
   border-bottom: none;
 }
 
-.poi-item:hover {
+.poi-item:active {
   background-color: #334155;
 }
 
 .poi-name {
-  font-size: 0.88rem;
+  font-size: 0.9rem;
   font-weight: 600;
   color: #f1f5f9;
 }
 
 .poi-addr {
-  font-size: 0.75rem;
+  font-size: 0.78rem;
   color: #94a3b8;
 }
 
+/* 버튼 (모바일 터치 타깃 44px 이상 확보) */
 .btn {
-  padding: 10px 16px;
+  padding: 12px 16px;
   border: none;
-  border-radius: 6px;
-  font-weight: 600;
+  border-radius: 8px;
+  font-weight: 700;
   cursor: pointer;
   transition: background-color 0.2s;
   font-size: 0.95rem;
+  min-height: 46px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .btn:disabled {
@@ -197,7 +250,7 @@ body {
   color: #ffffff;
 }
 
-.btn-primary:hover:not(:disabled) {
+.btn-primary:active {
   background-color: #1d4ed8;
 }
 
@@ -206,10 +259,11 @@ body {
   color: #ffffff;
 }
 
-.btn-secondary:hover:not(:disabled) {
+.btn-secondary:active {
   background-color: #0369a1;
 }
 
+/* 카메라 & 사진첩 버튼 */
 .media-btn-group {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -223,16 +277,16 @@ body {
   background-color: #334155;
   color: #f8fafc;
   border: 1px dashed #64748b;
-  padding: 12px;
-  border-radius: 6px;
-  font-size: 0.88rem;
+  padding: 14px 10px;
+  border-radius: 8px;
+  font-size: 0.9rem;
   font-weight: 600;
   cursor: pointer;
   text-align: center;
-  transition: all 0.2s;
+  min-height: 48px;
 }
 
-.btn-media:hover {
+.btn-media:active {
   background-color: #475569;
   border-color: #38bdf8;
   color: #38bdf8;
@@ -249,13 +303,14 @@ body {
   border: 0;
 }
 
+/* 미리보기 박스 */
 .preview-box {
   position: relative;
   background-color: #0f172a;
   border: 1px solid #475569;
-  border-radius: 6px;
+  border-radius: 8px;
   overflow: hidden;
-  max-height: 160px;
+  max-height: 180px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -263,7 +318,7 @@ body {
 
 .preview-box img {
   width: 100%;
-  height: 160px;
+  height: 180px;
   object-fit: cover;
 }
 
@@ -271,47 +326,49 @@ body {
   position: absolute;
   top: 8px;
   right: 8px;
-  background-color: rgba(239, 68, 68, 0.85);
+  background-color: rgba(239, 68, 68, 0.9);
   color: #ffffff;
   border: none;
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-size: 0.75rem;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
   cursor: pointer;
 }
 
+/* 지도 컨테이너 */
 .map-container {
   position: relative;
   border: 1px solid #334155;
-  border-radius: 8px;
+  border-radius: 10px;
   overflow: hidden;
-  height: 380px !important;
-  min-height: 380px !important;
+  height: 380px;
   background-color: #1e293b;
 }
 
 #map {
   width: 100% !important;
-  height: 380px !important;
-  min-height: 380px !important;
+  height: 100% !important;
+  min-height: 320px;
   display: block !important;
   z-index: 1;
 }
 
 .map-legend {
   position: absolute;
-  bottom: 12px;
-  left: 12px;
+  bottom: 10px;
+  left: 10px;
   background: rgba(15, 23, 42, 0.92);
   border: 1px solid #334155;
-  padding: 6px 12px;
+  padding: 6px 10px;
   border-radius: 6px;
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   display: flex;
-  gap: 12px;
+  gap: 8px;
   z-index: 1000;
 }
 
+/* 마커 스타일 */
 .map-pin {
   display: flex;
   align-items: center;
@@ -332,10 +389,11 @@ body {
 .pin-warning { background-color: #f59e0b; color: #000; }
 .pin-normal { background-color: #10b981; }
 
+/* 요약 지표 */
 .route-summary {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12px;
+  gap: 10px;
 }
 
 .summary-metric {
@@ -359,6 +417,7 @@ body {
   color: #38bdf8;
 }
 
+/* 경로 리스트 */
 .route-steps-container {
   display: flex;
   flex-direction: column;
@@ -376,14 +435,14 @@ body {
   max-height: 150px;
   overflow-y: auto;
   border: 1px solid #334155;
-  border-radius: 6px;
+  border-radius: 8px;
   background-color: #0f172a;
 }
 
 .step-item {
-  padding: 6px 10px;
+  padding: 8px 12px;
   border-bottom: 1px solid #1e293b;
-  font-size: 0.82rem;
+  font-size: 0.85rem;
   color: #cbd5e1;
   display: flex;
   gap: 8px;
@@ -399,6 +458,7 @@ body {
   min-width: 18px;
 }
 
+/* 민원 리스트 & 카드 */
 .complaints-list-container {
   display: flex;
   flex-direction: column;
@@ -415,14 +475,14 @@ body {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  max-height: 400px;
+  max-height: 480px;
   overflow-y: auto;
 }
 
 .complaint-card {
   background-color: #0f172a;
   border: 1px solid #334155;
-  border-radius: 8px;
+  border-radius: 10px;
   padding: 12px;
   display: flex;
   flex-direction: column;
@@ -439,10 +499,11 @@ body {
   display: flex;
   align-items: center;
   gap: 6px;
+  flex-wrap: wrap;
 }
 
 .card-location {
-  font-size: 0.78rem;
+  font-size: 0.8rem;
   color: #94a3b8;
 }
 
@@ -460,7 +521,7 @@ body {
   width: 80px;
   height: 80px;
   object-fit: cover;
-  border-radius: 6px;
+  border-radius: 8px;
   border: 1px solid #334155;
   flex-shrink: 0;
 }
@@ -473,49 +534,46 @@ body {
 }
 
 .card-summary {
-  font-size: 0.9rem;
+  font-size: 0.92rem;
   font-weight: 600;
   color: #f1f5f9;
 }
 
 .card-vision-desc {
-  font-size: 0.78rem;
+  font-size: 0.8rem;
   color: #94a3b8;
   background: #1e293b;
-  padding: 5px 8px;
-  border-radius: 4px;
+  padding: 6px 10px;
+  border-radius: 6px;
 }
 
 .card-action {
-  font-size: 0.78rem;
+  font-size: 0.8rem;
   color: #38bdf8;
   background: rgba(56, 189, 248, 0.1);
   border-left: 3px solid #38bdf8;
-  padding: 5px 8px;
-  border-radius: 0 4px 4px 0;
+  padding: 6px 10px;
+  border-radius: 0 6px 6px 0;
 }
 
 .btn-view-map {
   background: none;
   border: 1px solid #38bdf8;
   color: #38bdf8;
-  border-radius: 4px;
-  padding: 3px 8px;
-  font-size: 0.75rem;
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 0.78rem;
   font-weight: 600;
   cursor: pointer;
   align-self: flex-start;
   margin-top: 4px;
-}
-
-.btn-view-map:hover {
-  background: rgba(56, 189, 248, 0.15);
+  min-height: 36px;
 }
 
 .badge {
   font-size: 0.72rem;
   font-weight: 700;
-  padding: 2px 6px;
+  padding: 3px 6px;
   border-radius: 4px;
 }
 
@@ -547,6 +605,70 @@ body {
 .empty-state {
   text-align: center;
   color: #64748b;
-  font-size: 0.82rem;
-  padding: 18px;
+  font-size: 0.85rem;
+  padding: 24px 12px;
+}
+
+/* ========================================================
+   스마트폰 모바일 화면 전용 미디어 쿼리 (768px 이하)
+======================================================== */
+@media (max-width: 768px) {
+  .dashboard-header {
+    padding: 10px 14px;
+  }
+
+  .dashboard-header h1 {
+    font-size: 0.95rem;
+  }
+
+  .status-indicator {
+    font-size: 0.75rem;
+  }
+
+  /* 모바일 탭 바 활성화 */
+  .mobile-tab-nav {
+    display: flex;
+  }
+
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+    padding: 0 10px;
+    margin: 10px auto;
+  }
+
+  /* 탭에 따라 패널 숨김/표시 전환 */
+  .panel {
+    display: none;
+    padding: 14px;
+    border-radius: 10px;
+  }
+
+  .panel.active-panel {
+    display: flex;
+  }
+
+  /* 모바일에서 출발/도착 입력란을 1열로 보기 쉽게 배치 */
+  .input-row {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  /* 모바일 지도 높이 화면 비율에 맞춤 */
+  .map-container {
+    height: 320px;
+  }
+
+  #map {
+    min-height: 320px;
+  }
+
+  /* 민원 카드의 사진과 내용을 모바일에서 자연스럽게 줄바꿈 */
+  .card-body-layout {
+    flex-direction: column;
+  }
+
+  .card-thumbnail {
+    width: 100%;
+    height: 140px;
+  }
 }
