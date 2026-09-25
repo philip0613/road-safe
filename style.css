@@ -12,7 +12,6 @@ body {
   min-height: 100vh;
 }
 
-/* 상단 헤더 */
 .dashboard-header {
   background-color: #1e293b;
   border-bottom: 1px solid #334155;
@@ -39,7 +38,6 @@ body {
   font-weight: 600;
 }
 
-/* 2열 그리드 레이아웃 */
 .dashboard-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -75,7 +73,6 @@ body {
   color: #38bdf8;
 }
 
-/* 폼 스타일 */
 .control-form {
   display: flex;
   flex-direction: column;
@@ -140,11 +137,6 @@ body {
   background-color: #475569;
 }
 
-/* POI 자동완성 드롭다운 */
-.autocomplete-wrapper {
-  position: relative;
-}
-
 .poi-dropdown {
   position: absolute;
   top: 100%;
@@ -189,25 +181,30 @@ body {
   color: #94a3b8;
 }
 
-/* 버튼 */
+.action-buttons-row {
+  display: flex;
+  gap: 8px;
+}
+
 .btn {
-  padding: 10px 16px;
+  padding: 10px 14px;
   border: none;
   border-radius: 6px;
   font-weight: 600;
   cursor: pointer;
-  transition: background-color 0.2s;
-  font-size: 0.95rem;
+  transition: all 0.2s;
+  font-size: 0.9rem;
 }
 
 .btn:disabled {
-  opacity: 0.6;
+  opacity: 0.5;
   cursor: not-allowed;
 }
 
 .btn-primary {
   background-color: #2563eb;
   color: #ffffff;
+  flex: 1;
 }
 
 .btn-primary:hover:not(:disabled) {
@@ -223,7 +220,24 @@ body {
   background-color: #0369a1;
 }
 
-/* 카메라 / 갤러리 미디어 버튼 */
+.btn-simulate {
+  background-color: #0d9488;
+  color: #ffffff;
+}
+
+.btn-simulate:hover {
+  background-color: #0f766e;
+}
+
+.btn-navi {
+  background-color: #10b981;
+  color: #ffffff;
+}
+
+.btn-navi:hover {
+  background-color: #059669;
+}
+
 .media-btn-group {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -248,7 +262,6 @@ body {
   color: #38bdf8;
 }
 
-/* 사진 미리보기 박스 */
 .preview-box {
   position: relative;
   background-color: #0f172a;
@@ -280,21 +293,65 @@ body {
   cursor: pointer;
 }
 
-/* 지도 영역 */
+/* 지도 영역 (크기 강제 고정) */
 .map-container {
   position: relative;
   border: 1px solid #334155;
   border-radius: 8px;
   overflow: hidden;
   height: 380px;
-  background-color: #1e293b;
+  background-color: #0f172a;
 }
 
-.map-view {
-  width: 100%;
-  height: 100%;
+#map {
+  width: 100% !important;
+  height: 100% !important;
   min-height: 380px;
   z-index: 1;
+}
+
+/* 실시간 네비 HUD */
+.navi-hud {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  right: 10px;
+  background: rgba(15, 23, 42, 0.94);
+  border: 1px solid #38bdf8;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
+  border-radius: 8px;
+  padding: 10px 14px;
+  z-index: 500;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.hud-main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.hud-icon {
+  font-size: 1.3rem;
+}
+
+.hud-instruction {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #38bdf8;
+}
+
+.hud-sub {
+  font-size: 0.8rem;
+  color: #94a3b8;
+  display: flex;
+  gap: 8px;
+}
+
+.divider {
+  color: #475569;
 }
 
 .map-legend {
@@ -332,35 +389,16 @@ body {
 .pin-warning { background-color: #f59e0b; color: #000; }
 .pin-normal { background-color: #10b981; }
 
-/* 경로 요약 수치 */
-.route-summary {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
+/* 네비게이션 내 위치 펄스 마커 */
+.user-marker-pulse {
+  width: 22px;
+  height: 22px;
+  background-color: #38bdf8;
+  border: 3px solid #ffffff;
+  border-radius: 50%;
+  box-shadow: 0 0 14px #38bdf8;
 }
 
-.summary-metric {
-  background-color: #0f172a;
-  border: 1px solid #334155;
-  border-radius: 8px;
-  padding: 10px;
-  text-align: center;
-}
-
-.metric-title {
-  display: block;
-  font-size: 0.75rem;
-  color: #94a3b8;
-  margin-bottom: 2px;
-}
-
-.metric-value {
-  font-size: 1.15rem;
-  font-weight: 700;
-  color: #38bdf8;
-}
-
-/* 상세 안내 리스트 */
 .route-steps-container {
   display: flex;
   flex-direction: column;
@@ -375,7 +413,7 @@ body {
 
 .step-list {
   list-style: none;
-  max-height: 150px;
+  max-height: 140px;
   overflow-y: auto;
   border: 1px solid #334155;
   border-radius: 6px;
@@ -401,7 +439,6 @@ body {
   min-width: 18px;
 }
 
-/* 민원 리스트 및 카드 */
 .complaints-list-container {
   display: flex;
   flex-direction: column;
@@ -515,7 +552,6 @@ body {
   background: rgba(56, 189, 248, 0.15);
 }
 
-/* 뱃지 */
 .badge {
   font-size: 0.72rem;
   font-weight: 700;
