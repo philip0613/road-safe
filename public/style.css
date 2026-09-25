@@ -7,25 +7,26 @@
 
 body {
   font-family: -apple-system, BlinkMacSystemFont, "Pretendard", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  background-color: #000000;
+  background-color: #0f172a;
   color: #1e293b;
   overflow: hidden;
   height: 100vh;
   height: 100dvh;
 }
 
+/* ========================================================
+   [1. 스마트폰 모바일 기본 스타일 (< 1024px)]
+   - 보내주신 SafeRoad 정품 앱 UI 100% 동일 구현
+======================================================== */
 .app-viewport {
   position: relative;
   width: 100%;
-  max-width: 480px;
   height: 100%;
   margin: 0 auto;
   overflow: hidden;
   background-color: #f8fafc;
-  box-shadow: 0 0 40px rgba(0, 0, 0, 0.5);
 }
 
-/* 1. 지도 영역 (전체 화면) */
 #map {
   position: absolute;
   top: 0;
@@ -38,10 +39,10 @@ body {
 .leaflet-control-attribution {
   font-size: 9px !important;
   background: rgba(255, 255, 255, 0.7) !important;
-  margin-bottom: 75px !important;
+  margin-bottom: 78px !important;
 }
 
-/* 2. 상단 헤더 */
+/* 상단 헤더 */
 .app-header {
   position: absolute;
   top: 14px;
@@ -88,6 +89,20 @@ body {
   letter-spacing: -0.3px;
 }
 
+.desktop-subtitle {
+  display: none;
+}
+
+.header-right-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.btn-desktop-report {
+  display: none;
+}
+
 .points-badge {
   pointer-events: auto;
   display: flex;
@@ -100,17 +115,10 @@ body {
   box-shadow: 0 3px 10px rgba(0, 0, 0, 0.06);
 }
 
-.coin-icon {
-  font-size: 0.95rem;
-}
+.coin-icon { font-size: 0.95rem; }
+.points-val { font-size: 0.95rem; font-weight: 800; color: #008f72; }
 
-.points-val {
-  font-size: 0.95rem;
-  font-weight: 800;
-  color: #008f72;
-}
-
-/* 3. 좌측 플로팅 지도 필터 카드 */
+/* 모바일 좌측 플로팅 필터 */
 .floating-filter-card {
   position: absolute;
   top: 74px;
@@ -131,7 +139,6 @@ body {
   font-weight: 700;
   color: #64748b;
   padding-left: 6px;
-  margin-bottom: 2px;
 }
 
 .filter-btn-group {
@@ -152,7 +159,6 @@ body {
   font-weight: 700;
   color: #475569;
   cursor: pointer;
-  transition: all 0.2s;
   text-align: left;
 }
 
@@ -161,20 +167,14 @@ body {
   color: #ffffff;
 }
 
-.dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-
+.dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
 .dot-all { background: #00b894; border: 1.5px solid #ffffff; }
 .dot-danger { background: #ff4757; }
 .dot-warning { background: #ffa502; }
 .dot-resolved { background: #2ed573; }
 .icon-star { font-size: 0.85rem; }
 
-/* 4. 우측 플로팅 줌 & GPS 컨트롤 */
+/* 우측 줌/GPS */
 .floating-controls {
   position: absolute;
   top: 74px;
@@ -206,27 +206,13 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background 0.15s;
 }
 
-.ctrl-btn:active {
-  background: #f1f5f9;
-}
+.zoom-group .ctrl-btn:first-child { border-bottom: 1px solid #f1f5f9; }
+.gps-btn { border-radius: 50%; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1); }
+.target-icon { font-size: 1.1rem; }
 
-.zoom-group .ctrl-btn:first-child {
-  border-bottom: 1px solid #f1f5f9;
-}
-
-.gps-btn {
-  border-radius: 50%;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
-}
-
-.target-icon {
-  font-size: 1.1rem;
-}
-
-/* 5. 길찾기 상태 안내 바 */
+/* 모바일 하단 길찾기 바 */
 .route-trigger-bar {
   position: absolute;
   bottom: 86px;
@@ -266,7 +252,7 @@ body {
   cursor: pointer;
 }
 
-/* 6. 하단 네비게이션 탭바 */
+/* 모바일 하단 탭바 */
 .bottom-tab-bar {
   position: absolute;
   bottom: 0;
@@ -294,18 +280,11 @@ body {
   color: #94a3b8;
   font-size: 0.7rem;
   font-weight: 700;
-  padding: 6px 0;
 }
 
-.tab-item.active {
-  color: #00b894;
-}
+.tab-item.active { color: #00b894; }
+.tab-icon { font-size: 1.25rem; }
 
-.tab-icon {
-  font-size: 1.25rem;
-}
-
-/* 중앙 FAB (제보하기 돌출 버튼) */
 .center-fab-wrapper {
   flex: 1;
   display: flex;
@@ -327,27 +306,12 @@ body {
   justify-content: center;
   cursor: pointer;
   box-shadow: 0 8px 20px rgba(0, 184, 148, 0.45);
-  transition: transform 0.15s;
 }
 
-.fab-report-btn:active {
-  transform: scale(0.92);
-}
+.fab-plus { font-size: 1.8rem; line-height: 1; font-weight: 400; }
+.fab-label { font-size: 0.68rem; font-weight: 700; color: #00b894; margin-top: 2px; }
 
-.fab-plus {
-  font-size: 1.8rem;
-  line-height: 1;
-  font-weight: 400;
-}
-
-.fab-label {
-  font-size: 0.68rem;
-  font-weight: 700;
-  color: #00b894;
-  margin-top: 2px;
-}
-
-/* 7. 스크린샷 특유의 반투명 원형 후광 마커 */
+/* 반투명 원형 후광 마커 */
 .marker-halo-wrapper {
   position: relative;
   display: flex;
@@ -388,8 +352,15 @@ body {
 .core-warning { background: #ffa502; color: #ffffff; font-size: 11px; }
 .core-resolved { background: #2ed573; }
 
-/* 8. 바텀시트 모달 (공통) */
-.bottom-sheet-backdrop {
+/* PC 사이드바 기본 숨김 */
+.desktop-sidebar {
+  display: none;
+}
+
+/* ========================================================
+   [2. 반응형 모달 / 바텀시트 시스템]
+======================================================== */
+.modal-backdrop {
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.45);
@@ -400,10 +371,9 @@ body {
   justify-content: center;
 }
 
-.bottom-sheet {
+.modal-window {
   background: #ffffff;
   width: 100%;
-  max-width: 480px;
   border-radius: 24px 24px 0 0;
   padding: 14px 20px 30px;
   box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.15);
@@ -425,20 +395,20 @@ body {
   margin: 0 auto 12px;
 }
 
-.sheet-header {
+.modal-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 14px;
 }
 
-.sheet-header h3 {
+.modal-header h3 {
   font-size: 1.05rem;
   font-weight: 800;
   color: #0f172a;
 }
 
-.btn-sheet-close {
+.btn-modal-close {
   background: #f1f5f9;
   border: none;
   width: 28px;
@@ -449,7 +419,7 @@ body {
   cursor: pointer;
 }
 
-.sheet-form {
+.modal-form {
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -556,22 +526,16 @@ body {
   white-space: nowrap;
 }
 
-.btn-submit-report {
+.btn-submit-action {
   background: linear-gradient(135deg, #00b894 0%, #00cec9 100%);
   color: #ffffff;
   border: none;
-  padding: 14px;
+  padding: 13px;
   border-radius: 12px;
   font-size: 0.95rem;
   font-weight: 800;
   cursor: pointer;
   box-shadow: 0 4px 14px rgba(0, 184, 148, 0.3);
-  margin-top: 4px;
-}
-
-.btn-submit-report:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
 }
 
 .poi-dropdown {
@@ -596,23 +560,13 @@ body {
   cursor: pointer;
 }
 
-.poi-name {
-  font-size: 0.85rem;
-  font-weight: 700;
-  color: #0f172a;
-}
+.poi-name { font-size: 0.85rem; font-weight: 700; color: #0f172a; }
+.poi-addr { font-size: 0.72rem; color: #64748b; }
 
-.poi-addr {
-  font-size: 0.72rem;
-  color: #64748b;
-}
-
-/* 랭킹 / 스토어 서브 뷰 스타일 */
 .sub-view-content {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding: 6px 0;
+  gap: 10px;
 }
 
 .rank-item {
@@ -624,20 +578,309 @@ body {
   border-radius: 12px;
 }
 
-.rank-user {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-weight: 700;
-}
+.rank-user { display: flex; align-items: center; gap: 8px; font-weight: 700; }
+.rank-num { font-size: 1rem; font-weight: 800; color: #00b894; }
+.rank-points { font-weight: 800; color: #008f72; }
 
-.rank-num {
-  font-size: 1rem;
-  font-weight: 800;
-  color: #00b894;
-}
+/* ========================================================
+   [3. 노트북 / PC 전용 와이드 관제 대시보드 레이아웃 (>= 1024px)]
+======================================================== */
+@media (min-width: 1024px) {
+  /* 1. 모바일 전용 컴포넌트 완전 숨김 */
+  .floating-filter-card,
+  .route-trigger-bar,
+  .bottom-tab-bar {
+    display: none !important;
+  }
 
-.rank-points {
-  font-weight: 800;
-  color: #008f72;
+  /* 2. PC 와이드 헤더 */
+  .app-header {
+    top: 20px;
+    left: 20px;
+    right: 20px;
+  }
+
+  .brand-badge {
+    padding: 8px 18px 8px 10px;
+    gap: 10px;
+  }
+
+  .brand-text {
+    font-size: 1.25rem;
+  }
+
+  .desktop-subtitle {
+    display: inline-block;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #64748b;
+    border-left: 1px solid #e2e8f0;
+    padding-left: 10px;
+    margin-left: 4px;
+  }
+
+  .btn-desktop-report {
+    pointer-events: auto;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: linear-gradient(135deg, #00b894 0%, #00cec9 100%);
+    color: #ffffff;
+    border: none;
+    padding: 9px 16px;
+    border-radius: 20px;
+    font-size: 0.88rem;
+    font-weight: 800;
+    cursor: pointer;
+    box-shadow: 0 4px 14px rgba(0, 184, 148, 0.3);
+    transition: transform 0.15s;
+  }
+
+  .btn-desktop-report:hover {
+    transform: translateY(-1px);
+  }
+
+  .points-badge {
+    padding: 8px 18px;
+  }
+
+  .points-val {
+    font-size: 1rem;
+  }
+
+  /* 3. 좌측 관제 사이드바 (카카오맵/네이버 지도 스타일) */
+  .desktop-sidebar {
+    display: flex;
+    flex-direction: column;
+    position: absolute;
+    top: 86px;
+    left: 20px;
+    bottom: 20px;
+    width: 380px;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(14px);
+    border-radius: 20px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    z-index: 500;
+    overflow: visible;
+    transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+
+  /* 사이드바 접기 상태 */
+  .desktop-sidebar.collapsed {
+    transform: translateX(-400px);
+  }
+
+  .btn-sidebar-toggle {
+    position: absolute;
+    right: -24px;
+    top: 24px;
+    width: 24px;
+    height: 48px;
+    background: #ffffff;
+    border: none;
+    border-radius: 0 10px 10px 0;
+    box-shadow: 4px 0 10px rgba(0, 0, 0, 0.08);
+    cursor: pointer;
+    font-size: 0.75rem;
+    color: #64748b;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+  }
+
+  .sidebar-tab-nav {
+    display: flex;
+    background: #f1f5f9;
+    padding: 6px;
+    border-radius: 16px 16px 0 0;
+    gap: 4px;
+  }
+
+  .sidebar-tab {
+    flex: 1;
+    border: none;
+    background: transparent;
+    padding: 10px;
+    border-radius: 12px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #64748b;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .sidebar-tab.active {
+    background: #ffffff;
+    color: #00b894;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  }
+
+  .sidebar-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 18px;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .sidebar-pane {
+    display: none;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .sidebar-pane.active {
+    display: flex;
+  }
+
+  .route-summary-box {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    background: #e8f9f5;
+    border: 1px solid #c2f0e4;
+    padding: 12px;
+    border-radius: 12px;
+  }
+
+  .summary-metric {
+    display: flex;
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .metric-label { font-size: 0.72rem; color: #64748b; font-weight: 600; }
+  .metric-val { font-size: 1.05rem; font-weight: 800; color: #008f72; }
+
+  .steps-box h4 {
+    font-size: 0.82rem;
+    color: #64748b;
+    margin-bottom: 6px;
+  }
+
+  .step-list {
+    list-style: none;
+    max-height: 180px;
+    overflow-y: auto;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    background: #f8fafc;
+  }
+
+  .step-item {
+    padding: 8px 12px;
+    border-bottom: 1px solid #e2e8f0;
+    font-size: 0.82rem;
+    color: #334155;
+    display: flex;
+    gap: 6px;
+  }
+
+  .step-item:last-child { border-bottom: none; }
+  .step-index { color: #00b894; font-weight: 800; }
+
+  /* PC 필터 카드 스타일 */
+  .filter-card-desktop {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .filter-item-btn {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border: 1px solid #e2e8f0;
+    background: #f8fafc;
+    padding: 12px 14px;
+    border-radius: 12px;
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: #334155;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .filter-item-btn:hover {
+    background: #ffffff;
+    border-color: #00b894;
+  }
+
+  .filter-item-btn.active {
+    background: #e8f9f5;
+    border-color: #00b894;
+    color: #008f72;
+  }
+
+  /* PC 민원 목록 스크롤 */
+  .complaints-list-scroll {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-height: calc(100vh - 240px);
+    overflow-y: auto;
+  }
+
+  .complaint-pc-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    cursor: pointer;
+    transition: border-color 0.2s;
+  }
+
+  .complaint-pc-card:hover {
+    border-color: #00b894;
+  }
+
+  .c-header {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.75rem;
+    font-weight: 700;
+  }
+
+  .c-title {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: #0f172a;
+  }
+
+  .empty-state {
+    text-align: center;
+    color: #94a3b8;
+    font-size: 0.82rem;
+    padding: 20px;
+  }
+
+  /* 4. PC 모달창 (바텀시트 대신 화면 중앙 세련된 팝업 모달) */
+  .modal-backdrop {
+    align-items: center;
+  }
+
+  .modal-window {
+    width: 480px;
+    border-radius: 20px;
+    animation: popIn 0.2s ease-out;
+    padding: 24px;
+  }
+
+  @keyframes popIn {
+    from { opacity: 0; transform: scale(0.95); }
+    to { opacity: 1; transform: scale(1); }
+  }
+
+  .sheet-handle-bar {
+    display: none;
+  }
+
+  .leaflet-control-attribution {
+    margin-bottom: 10px !important;
+  }
 }
