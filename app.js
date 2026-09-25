@@ -1,168 +1,226 @@
 // ==========================================
-// 1. 기본 설정 및 키 등록
+// API 키 설정
 // ==========================================
 const TMAP_APP_KEY = 'YEWVxfrK4j8xTNQZURJ4z1Te4JTZs26v45fgmfn7';
 const GEMINI_API_KEY = 'AQ.Ab8RN6J3dukN_07G3h0hTGxacIAinSCW1LKJ1i63VHbxPNgLAg';
 
-// 경로 및 상태 데이터
-let fullRouteCoords = [];
-let remainingRouteCoords = [];
-let guidePoints = [];
-let simInterval = null;
-let watchId = null;
+// ==========================================
+// 지도 및 전역 데이터
+// ==========================================
+let map = null;
+let routePolyline = null;
+let startMarker = null;
+let endMarker = null;
+let complaintMarkers = []; // 지도에 표시된 민원 마커들
 
 let currentBase64Image = null;
 let currentMimeType = null;
 let complaintsData = [];
 
 // ==========================================
-// 2. Tmap 연동 & 하이브리드 지도 엔진
+// 1. 지도 초기화 (직관적 Leaflet 지도)
 // ==========================================
-let isLeafletActive = false;
-let leafletMap = null;
-let routePolyline = null;
-let passedPolyline = null;
-let userMarker = null;
+function initMap() {
+  const mapElement = document.getElementById('map');
+  if (!mapElement) return;
 
-// Tmap Static Map 기반 캔버스 백업 렌더러
-let staticBgImg = new Image();
-let canvasEl = null;
-let canvasCtx = null;
-let currentCenter = { lat: 37.5547, lon: 126.9706 };
+  // 서울역 중심 초기화
+  map = L.map('map', {
+    zoomControl: true
+  }).setView([37.5565, 126.9740], 15);
 
-function initMapEngine() {
-  const mapContainer = document.getElementById('map');
-  canvasEl = document.getElementById('fallbackCanvas');
-  canvasCtx = canvasEl.getContext('2d');
+  // 글로벌 표준 오픈스트리트맵 타일
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '&copy; OpenStreetMap'
+  }).addTo(map);
 
-  // Leaflet 사용 가능 여부 확인
-  if (typeof L !== 'undefined' && mapContainer) {
-    try {
-      leafletMap = L.map('map', { zoomControl: true }).setView([37.5547, 126.9706], 15);
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(leafletMap);
+  // 지도 클릭 시 민원 발생 위치 지정
+  map.on('click', (e) => {
+    setComplaintCoords(e.latlng.lat, e.latlng.lng, `선택 위치 (${e.latlng.lat.toFixed(4)},${e.latlng.lng.toFixed(4)})`);
+  });
 
-      isLeafletActive = true;
-      setTimeout(() => leafletMap.invalidateSize(), 200);
+  // 지도 크기 자동 재계산 (회색/검은 화면 방지)
+  setTimeout(() => map.invalidateSize(), 150);
+  setTimeout(() => map.invalidateSize(), 500);
+}
 
-      leafletMap.on('click', (e) => {
-        setComplaintCoords(e.latlng.lat, e.latlng.lng);
-      });
-      return;
-    } catch (e) {
-      console.warn('Leaflet 초기화 실패, Tmap 캔버스 엔진으로 자동 전환합니다:', e);
-    }
-  }
-
-  // Leaflet 실패 시: Tmap 정적 지도 기반 캔버스 엔진 가동
-  mapContainer.style.display = 'none';
-  canvasEl.style.display = 'block';
-  resizeCanvas();
-  loadTmapStaticBackground(37.5547, 126.9706);
-
-  canvasEl.addEventListener('click', (e) => {
-    // 캔버스 클릭 시 임의의 민원 위치 지정
-    const rect = canvasEl.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    const lat = currentCenter.lat + (0.5 - y / canvasEl.height) * 0.01;
-    const lon = currentCenter.lon + (x / canvasEl.width - 0.5) * 0.01;
-    setComplaintCoords(lat, lon);
+// 아이콘 생성기 (이미지 404 에러 원천 차단)
+function createPinIcon(type, emoji) {
+  return L.divIcon({
+    className: 'custom-pin-wrapper',
+    html: `<div class="map-pin pin-${type}">${emoji}</div>`,
+    iconSize: [32, 32],
+    iconAnchor: [16, 16],
+    popupAnchor: [0, -18]
   });
 }
 
-function resizeCanvas() {
-  if (!canvasEl) return;
-  canvasEl.width = canvasEl.parentElement.clientWidth || 500;
-  canvasEl.height = canvasEl.parentElement.clientHeight || 350;
-}
+// ==========================================
+// 2. Tmap 보행자 경로 탐색 & 지도 경로선 표시
+// ==========================================
+async function searchPedestrianRoute(e) {
+  if (e) e.preventDefault();
 
-function loadTmapStaticBackground(lat, lon) {
-  currentCenter = { lat, lon };
-  const url = `https://apis.openapi.sk.com/tmap/staticMap?version=1&coordType=WGS84GEO&width=600&height=400&zoom=15&format=PNG&longitude=${lon}&latitude=${lat}&appKey=${TMAP_APP_KEY}`;
+  const startName = document.getElementById('startInput').value.trim();
+  const endName = document.getElementById('endInput').value.trim();
+  const startLat = parseFloat(document.getElementById('startLat').value);
+  const startLon = parseFloat(document.getElementById('startLon').value);
+  const endLat = parseFloat(document.getElementById('endLat').value);
+  const endLon = parseFloat(document.getElementById('endLon').value);
 
-  staticBgImg.crossOrigin = 'anonymous';
-  staticBgImg.onload = () => drawCanvasNavigation();
-  staticBgImg.onerror = () => {
-    // Tmap 이미지 차단 시 다크 그리드 렌더링
-    drawCanvasNavigation(true);
+  const searchBtn = document.getElementById('searchRouteBtn');
+  searchBtn.disabled = true;
+  searchBtn.textContent = '보행자 경로 탐색 중...';
+
+  const payload = {
+    startX: startLon.toString(),
+    startY: startLat.toString(),
+    endX: endLon.toString(),
+    endY: endLat.toString(),
+    reqCoordType: 'WGS84GEO',
+    resCoordType: 'WGS84GEO',
+    startName: startName || '출발지',
+    endName: endName || '도착지'
   };
-  staticBgImg.src = url;
+
+  try {
+    const res = await fetch('https://apis.openapi.sk.com/tmap/routes/pedestrian?version=1', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'appKey': TMAP_APP_KEY
+      },
+      body: JSON.stringify(payload)
+    });
+
+    if (!res.ok) throw new Error(`Tmap 오류 (${res.status})`);
+    const data = await res.json();
+    renderRoute(data, startLat, startLon, endLat, endLon, startName, endName);
+  } catch (err) {
+    console.warn('API 호출 제한 시 보조 경로로 시각화:', err);
+    renderFallbackRoute(startLat, startLon, endLat, endLon, startName, endName);
+  } finally {
+    searchBtn.disabled = false;
+    searchBtn.textContent = '보행자 경로 탐색';
+  }
 }
 
-// 캔버스 위에 경로선, 보행자 네비 마커 렌더링
-function drawCanvasNavigation(useDarkGrid = false) {
-  if (isLeafletActive || !canvasCtx) return;
-  const w = canvasEl.width;
-  const h = canvasEl.height;
+// 경로선 및 출발/도착 마커 렌더링
+function renderRoute(data, sLat, sLon, eLat, eLon, sName, eName) {
+  const coords = [];
+  const steps = [];
 
-  canvasCtx.clearRect(0, 0, w, h);
-
-  if (!useDarkGrid && staticBgImg.complete && staticBgImg.naturalWidth > 0) {
-    canvasCtx.drawImage(staticBgImg, 0, 0, w, h);
-  } else {
-    // 다크 네비게이션 테마 배경
-    canvasCtx.fillStyle = '#1e293b';
-    canvasCtx.fillRect(0, 0, w, h);
-    canvasCtx.strokeStyle = '#334155';
-    canvasCtx.lineWidth = 1;
-    for (let x = 0; x < w; x += 40) {
-      canvasCtx.beginPath();
-      canvasCtx.moveTo(x, 0); canvasCtx.lineTo(x, h); canvasCtx.stroke();
+  const features = data.features || [];
+  features.forEach(f => {
+    if (f.geometry.type === 'LineString') {
+      f.geometry.coordinates.forEach(pt => coords.push([pt[1], pt[0]]));
+    } else if (f.geometry.type === 'Point' && f.properties.description) {
+      steps.push(f.properties.description);
     }
-    for (let y = 0; y < h; y += 40) {
-      canvasCtx.beginPath();
-      canvasCtx.moveTo(0, y); canvasCtx.lineTo(w, y); canvasCtx.stroke();
-    }
-  }
-
-  if (remainingRouteCoords.length === 0) return;
-
-  // 좌표를 캔버스 픽셀로 투영
-  const pts = remainingRouteCoords.map(c => projectCoord(c[0], c[1], w, h));
-
-  // 1. 남은 경로선 (시안 블루 네비 라인)
-  canvasCtx.beginPath();
-  canvasCtx.strokeStyle = '#38bdf8';
-  canvasCtx.lineWidth = 6;
-  canvasCtx.lineCap = 'round';
-  canvasCtx.lineJoin = 'round';
-  pts.forEach((p, idx) => {
-    if (idx === 0) canvasCtx.moveTo(p.x, p.y);
-    else canvasCtx.lineTo(p.x, p.y);
   });
-  canvasCtx.stroke();
 
-  // 2. 현재 내 보행자 위치 펄스 마커
-  const currentPos = pts[0];
-  if (currentPos) {
-    canvasCtx.beginPath();
-    canvasCtx.arc(currentPos.x, currentPos.y, 10, 0, Math.PI * 2);
-    canvasCtx.fillStyle = '#0284c7';
-    canvasCtx.fill();
-    canvasCtx.lineWidth = 3;
-    canvasCtx.strokeStyle = '#ffffff';
-    canvasCtx.stroke();
-  }
+  const totalDist = features[0]?.properties?.totalDistance || 0;
+  const totalTime = Math.round((features[0]?.properties?.totalTime || 0) / 60);
 
-  // 3. 도착지 핀
-  const destPos = pts[pts.length - 1];
-  if (destPos) {
-    canvasCtx.beginPath();
-    canvasCtx.arc(destPos.x, destPos.y, 6, 0, Math.PI * 2);
-    canvasCtx.fillStyle = '#ef4444';
-    canvasCtx.fill();
-  }
+  drawRouteOnMap(coords, steps, totalDist, totalTime, sLat, sLon, eLat, eLon, sName, eName);
 }
 
-function projectCoord(lat, lon, width, height) {
-  const scale = 32000;
-  const x = width / 2 + (lon - currentCenter.lon) * scale;
-  const y = height / 2 - (lat - currentCenter.lat) * scale;
-  return { x, y };
+function renderFallbackRoute(sLat, sLon, eLat, eLon, sName, eName) {
+  const coords = [];
+  const count = 16;
+  for (let i = 0; i <= count; i++) {
+    const r = i / count;
+    const curve = Math.sin(r * Math.PI) * 0.002;
+    coords.push([sLat + (eLat - sLat) * r + curve, sLon + (eLon - sLon) * r]);
+  }
+  const steps = [
+    `${sName} 횡단보도 방면 이동`,
+    '보행자 전용 도로를 따라 직진',
+    '지하보도 및 건널목 통과',
+    `${eName} 도착`
+  ];
+  drawRouteOnMap(coords, steps, Math.round(coords.length * 50), Math.ceil(coords.length * 0.7), sLat, sLon, eLat, eLon, sName, eName);
+}
+
+function drawRouteOnMap(coords, steps, dist, time, sLat, sLon, eLat, eLon, sName, eName) {
+  // 기존 경로선 및 출발/도착 마커 정리
+  if (routePolyline) map.removeLayer(routePolyline);
+  if (startMarker) map.removeLayer(startMarker);
+  if (endMarker) map.removeLayer(endMarker);
+
+  // 1. 선명한 파란색 보행자 경로선 그리기
+  routePolyline = L.polyline(coords, {
+    color: '#2563eb',
+    weight: 6,
+    opacity: 0.85
+  }).addTo(map);
+
+  // 2. 출발지 / 도착지 마커 표시
+  startMarker = L.marker([sLat, sLon], { icon: createPinIcon('start', '출') })
+    .addTo(map)
+    .bindPopup(`<b>출발지:</b> ${sName}`);
+
+  endMarker = L.marker([eLat, eLon], { icon: createPinIcon('end', '도') })
+    .addTo(map)
+    .bindPopup(`<b>도착지:</b> ${eName}`);
+
+  // 경로 전체가 한눈에 보이도록 지도 줌 자동 조절
+  map.fitBounds(routePolyline.getBounds(), { padding: [40, 40] });
+
+  // 3. 거리 / 시간 요약 갱신
+  document.getElementById('summaryDistance').textContent = dist >= 1000 ? `${(dist / 1000).toFixed(2)} km` : `${dist} m`;
+  document.getElementById('summaryTime').textContent = `${time}분`;
+  document.getElementById('routeSummary').style.display = 'grid';
+
+  // 4. 경로 상세 안내 목록 렌더링
+  const stepsList = document.getElementById('routeStepsList');
+  stepsList.innerHTML = steps.map((s, idx) => `
+    <li class="step-item">
+      <span class="step-index">${idx + 1}</span>
+      <span class="step-desc">${s}</span>
+    </li>
+  `).join('');
 }
 
 // ==========================================
-// 3. Tmap POI 실시간 검색 & 자동완성
+// 3. 지도 위에 민원 마커 표시
+// ==========================================
+function addComplaintMarkerToMap(complaint) {
+  let pinType = 'normal';
+  let emoji = '🟢';
+  if (complaint.riskLevel === '긴급') { pinType = 'danger'; emoji = '🚨'; }
+  else if (complaint.riskLevel === '주의') { pinType = 'warning'; emoji = '⚠️'; }
+
+  const marker = L.marker([complaint.lat, complaint.lon], {
+    icon: createPinIcon(pinType, emoji)
+  }).addTo(map);
+
+  marker.bindPopup(`
+    <div style="font-size: 0.85rem; line-height: 1.4; color: #0f172a;">
+      <b style="color: ${complaint.riskLevel === '긴급' ? '#dc2626' : '#d97706'}">[${complaint.riskLevel}]${complaint.category}</b><br>
+      <b>위치:</b> ${complaint.location}<br>
+      <b>요약:</b> ${complaint.summary}<br>
+      <b>조치 권고:</b> ${complaint.action}
+    </div>
+  `);
+
+  complaintMarkers.push({ id: complaint.id, marker: marker });
+  marker.openPopup();
+  map.panTo([complaint.lat, complaint.lon]);
+}
+
+// 특정 민원 마커로 지도 이동
+function focusComplaintOnMap(id) {
+  const target = complaintMarkers.find(c => c.id === id);
+  if (target && target.marker) {
+    map.setView(target.marker.getLatLng(), 17);
+    target.marker.openPopup();
+  }
+}
+
+// ==========================================
+// 4. Tmap POI 실시간 검색 & 자동완성
 // ==========================================
 async function searchTmapPoi(keyword) {
   if (!keyword || keyword.trim().length < 2) return [];
@@ -171,10 +229,10 @@ async function searchTmapPoi(keyword) {
 
   try {
     const res = await fetch(url, { headers: { 'appKey': TMAP_APP_KEY } });
-    if (!res.ok) return getFallbackPoi(keyword);
+    if (!res.ok) return getFallbackPois(keyword);
     const data = await res.json();
     const pois = data.searchPoiInfo?.pois?.poi || [];
-    if (pois.length === 0) return getFallbackPoi(keyword);
+    if (pois.length === 0) return getFallbackPois(keyword);
 
     return pois.map(p => ({
       name: p.name,
@@ -183,17 +241,16 @@ async function searchTmapPoi(keyword) {
       lon: parseFloat(p.frontLon || p.noorLon)
     }));
   } catch (e) {
-    return getFallbackPoi(keyword);
+    return getFallbackPois(keyword);
   }
 }
 
-function getFallbackPoi(keyword) {
+function getFallbackPois(keyword) {
   const base = [
     { name: '서울역 1번출구', address: '서울특별시 중구 한강대로 405', lat: 37.5547, lon: 126.9706 },
     { name: '남대문시장', address: '서울특별시 중구 남대문시장4길 21', lat: 37.5592, lon: 126.9776 },
     { name: '시청역 4번출구', address: '서울특별시 중구 세종대로 110', lat: 37.5665, lon: 126.9780 },
-    { name: '명동역', address: '서울특별시 중구 퇴계로 126', lat: 37.5609, lon: 126.9863 },
-    { name: '광화문광장', address: '서울특별시 종로구 세종대로 172', lat: 37.5724, lon: 126.9768 }
+    { name: '명동역', address: '서울특별시 중구 퇴계로 126', lat: 37.5609, lon: 126.9863 }
   ];
   return base.filter(b => b.name.includes(keyword) || b.address.includes(keyword));
 }
@@ -243,279 +300,45 @@ function setupPoi(inputId, listId, onSelect) {
   });
 }
 
-// ==========================================
-// 4. Tmap 보행자 경로 탐색 & 네비게이션
-// ==========================================
-async function searchPedestrianRoute(e) {
-  if (e) e.preventDefault();
-  stopNavigation();
-
-  const startName = document.getElementById('startInput').value;
-  const endName = document.getElementById('endInput').value;
-  const startLat = parseFloat(document.getElementById('startLat').value);
-  const startLon = parseFloat(document.getElementById('startLon').value);
-  const endLat = parseFloat(document.getElementById('endLat').value);
-  const endLon = parseFloat(document.getElementById('endLon').value);
-
-  const btn = document.getElementById('searchRouteBtn');
-  btn.disabled = true;
-  btn.textContent = '안전 경로 계산 중...';
-
-  const payload = {
-    startX: startLon.toString(),
-    startY: startLat.toString(),
-    endX: endLon.toString(),
-    endY: endLat.toString(),
-    reqCoordType: 'WGS84GEO',
-    resCoordType: 'WGS84GEO',
-    startName, endName
-  };
-
-  try {
-    const res = await fetch('https://apis.openapi.sk.com/tmap/routes/pedestrian?version=1', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'appKey': TMAP_APP_KEY },
-      body: JSON.stringify(payload)
-    });
-
-    if (!res.ok) throw new Error(`Tmap 오류 (${res.status})`);
-    const data = await res.json();
-    handleRouteSuccess(data, startLat, startLon, endLat, endLon, startName, endName);
-  } catch (err) {
-    // API 차단 시 보행자 보조 경로 생성
-    buildFallbackRoute(startLat, startLon, endLat, endLon, startName, endName);
-  } finally {
-    btn.disabled = false;
-    btn.textContent = '보행자 경로 탐색';
-  }
-}
-
-function handleRouteSuccess(data, sLat, sLon, eLat, eLon, sName, eName) {
-  fullRouteCoords = [];
-  guidePoints = [];
-
-  const features = data.features || [];
-  features.forEach(f => {
-    if (f.geometry.type === 'LineString') {
-      f.geometry.coordinates.forEach(pt => fullRouteCoords.push([pt[1], pt[0]]));
-    } else if (f.geometry.type === 'Point' && f.properties.description) {
-      guidePoints.push(f.properties.description);
-    }
-  });
-
-  applyRoutePaths(fullRouteCoords, guidePoints, sLat, sLon, eLat, eLon);
-}
-
-function buildFallbackRoute(sLat, sLon, eLat, eLon, sName, eName) {
-  fullRouteCoords = [];
-  const count = 16;
-  for (let i = 0; i <= count; i++) {
-    const r = i / count;
-    const curve = Math.sin(r * Math.PI) * 0.002;
-    fullRouteCoords.push([sLat + (eLat - sLat) * r + curve, sLon + (eLon - sLon) * r]);
-  }
-  guidePoints = [
-    `${sName} 횡단보도 방면 50m 이동`,
-    '안전 보행로를 따라 우회전',
-    '지하도 진입로 우측 통과',
-    `${eName} 도착`
-  ];
-  applyRoutePaths(fullRouteCoords, guidePoints, sLat, sLon, eLat, eLon);
-}
-
-function applyRoutePaths(coords, guides, sLat, sLon, eLat, eLon) {
-  remainingRouteCoords = [...coords];
-
-  // 1. 안내 리스트
-  document.getElementById('routeStepsList').innerHTML = guides.map((g, i) => `
-    <li class="step-item">
-      <span class="step-index">${i + 1}</span>
-      <span class="step-desc">${g}</span>
-    </li>
-  `).join('');
-
-  document.getElementById('hudRemainDistance').textContent = `남은 거리: 약 ${coords.length * 40}m`;
-  document.getElementById('hudRemainTime').textContent = `남은 시간: 약 ${Math.ceil(coords.length * 0.7)}분`;
-  document.getElementById('hudInstruction').textContent = guides[0] || '경로를 따라 이동하세요';
-
-  // 2. Leaflet 렌더링
-  if (isLeafletActive && leafletMap) {
-    if (routePolyline) leafletMap.removeLayer(routePolyline);
-    if (passedPolyline) leafletMap.removeLayer(passedPolyline);
-
-    passedPolyline = L.polyline([], { color: '#64748b', weight: 5, opacity: 0.5 }).addTo(leafletMap);
-    routePolyline = L.polyline(remainingRouteCoords, { color: '#38bdf8', weight: 6 }).addTo(leafletMap);
-    leafletMap.fitBounds(routePolyline.getBounds(), { padding: [40, 40] });
-  } else {
-    // 캔버스 렌더링
-    loadTmapStaticBackground(sLat, sLon);
-  }
-}
-
-// 실시간 네비 진행 (지나온 길 실시간 삭제)
-function updateNavigationProgress(lat, lon) {
-  if (remainingRouteCoords.length === 0) return;
-
-  let closestIdx = 0;
-  let minDist = Infinity;
-  remainingRouteCoords.forEach((pt, idx) => {
-    const d = Math.hypot(pt[0] - lat, pt[1] - lon);
-    if (d < minDist) { minDist = d; closestIdx = idx; }
-  });
-
-  if (closestIdx > 0) {
-    remainingRouteCoords = remainingRouteCoords.slice(closestIdx);
-
-    if (isLeafletActive && routePolyline) {
-      passedPolyline.addLatLng([lat, lon]);
-      routePolyline.setLatLngs(remainingRouteCoords);
-    }
-  }
-
-  // 캔버스 업데이트
-  if (!isLeafletActive) {
-    currentCenter = { lat, lon };
-    drawCanvasNavigation();
-  }
-
-  document.getElementById('hudRemainDistance').textContent = `남은 거리: 약 ${remainingRouteCoords.length * 35}m`;
-
-  if (remainingRouteCoords.length <= 1) {
-    document.getElementById('hudInstruction').textContent = '🎉 목적지에 도착했습니다!';
-    stopNavigation();
-  }
-}
-
-function startSimulation() {
-  stopNavigation();
-  if (fullRouteCoords.length === 0) {
-    searchPedestrianRoute();
-  }
-
-  let step = 0;
-  document.getElementById('startSimBtn').textContent = '모의 주행 중지';
-
-  simInterval = setInterval(() => {
-    if (step >= fullRouteCoords.length) {
-      stopNavigation();
-      return;
-    }
-    const [lat, lon] = fullRouteCoords[step];
-    if (isLeafletActive && leafletMap) leafletMap.panTo([lat, lon]);
-    updateNavigationProgress(lat, lon);
-    step++;
-  }, 400);
-}
-
-function startRealtimeNavigation() {
-  stopNavigation();
-  if (!navigator.geolocation) {
-    alert('GPS를 지원하지 않는 브라우저입니다.');
-    return;
-  }
-  document.getElementById('startNaviBtn').textContent = '실시간 네비 중지';
-  watchId = navigator.geolocation.watchPosition(
-    pos => updateNavigationProgress(pos.coords.latitude, pos.coords.longitude),
-    err => console.warn(err),
-    { enableHighAccuracy: true }
-  );
-}
-
-function stopNavigation() {
-  if (simInterval) {
-    clearInterval(simInterval);
-    simInterval = null;
-    document.getElementById('startSimBtn').textContent = '모의 주행 (테스트)';
-  }
-  if (watchId) {
-    navigator.geolocation.clearWatch(watchId);
-    watchId = null;
-    document.getElementById('startNaviBtn').textContent = '실시간 네비 시작';
-  }
+function setComplaintCoords(lat, lon, label) {
+  document.getElementById('complaintLat').value = lat;
+  document.getElementById('complaintLon').value = lon;
+  if (label) document.getElementById('complaintLocation').value = label;
 }
 
 // ==========================================
-// 5. 카메라 직접 촬영 (PC웹캠/모바일) & 사진첩 선택
+// 5. 카메라 직접 촬영 및 사진첩 등록
 // ==========================================
-let mediaStream = null;
-
 function initMediaControls() {
   const cameraInput = document.getElementById('cameraInput');
   const galleryInput = document.getElementById('galleryInput');
-  const btnCamera = document.getElementById('btnTriggerCamera');
-  const btnGallery = document.getElementById('btnTriggerGallery');
-  const webcamModal = document.getElementById('webcamModal');
-  const webcamVideo = document.getElementById('webcamVideo');
-  const btnWebcamSnap = document.getElementById('btnWebcamSnap');
-  const btnWebcamClose = document.getElementById('btnWebcamClose');
 
-  // 사진첩 선택
-  btnGallery.addEventListener('click', () => {
-    galleryInput.click();
-  });
+  document.getElementById('btnCamera').addEventListener('click', () => cameraInput.click());
+  document.getElementById('btnGallery').addEventListener('click', () => galleryInput.click());
 
-  // 카메라 촬영 (PC면 웹캠 모달, 모바일이면 카메라 앱)
-  btnCamera.addEventListener('click', async () => {
-    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-
-    if (isMobile) {
-      cameraInput.click();
-      return;
-    }
-
-    // 데스크톱: 웹캠 모달 실행
-    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-      try {
-        mediaStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-        webcamVideo.srcObject = mediaStream;
-        webcamModal.style.display = 'flex';
-      } catch (err) {
-        // 웹캠이 없거나 권한 차단 시 파일 선택창으로 안전 폴백
-        cameraInput.click();
-      }
-    } else {
-      cameraInput.click();
-    }
-  });
-
-  // 웹캠 캡처
-  btnWebcamSnap.addEventListener('click', () => {
-    const snapCanvas = document.createElement('canvas');
-    snapCanvas.width = webcamVideo.videoWidth || 640;
-    snapCanvas.height = webcamVideo.videoHeight || 480;
-    const ctx = snapCanvas.getContext('2d');
-    ctx.drawImage(webcamVideo, 0, 0, snapCanvas.width, snapCanvas.height);
-
-    const dataUrl = snapCanvas.toDataURL('image/jpeg');
-    applyCapturedImage(dataUrl, 'image/jpeg');
-    closeWebcamModal();
-  });
-
-  btnWebcamClose.addEventListener('click', closeWebcamModal);
-
-  function closeWebcamModal() {
-    if (mediaStream) {
-      mediaStream.getTracks().forEach(t => t.stop());
-      mediaStream = null;
-    }
-    webcamModal.style.display = 'none';
-  }
-
-  // 파일 인풋 이벤트
-  [cameraInput, galleryInput].forEach(inp => {
-    inp.addEventListener('change', (e) => {
+  [cameraInput, galleryInput].forEach(input => {
+    input.addEventListener('change', (e) => {
       const file = e.target.files[0];
       if (!file) return;
 
       const reader = new FileReader();
       reader.onload = () => {
-        applyCapturedImage(reader.result, file.type || 'image/jpeg');
+        const dataUrl = reader.result;
+        const match = dataUrl.match(/^data:(.*?);base64,(.*)$/);
+        if (match) {
+          currentMimeType = match[1];
+          currentBase64Image = match[2];
+          document.getElementById('imagePreview').src = dataUrl;
+          document.getElementById('previewContainer').style.display = 'flex';
+        }
       };
       reader.readAsDataURL(file);
     });
   });
 
   document.getElementById('removeImgBtn').addEventListener('click', () => {
+    cameraInput.value = '';
+    galleryInput.value = '';
     currentBase64Image = null;
     currentMimeType = null;
     document.getElementById('previewContainer').style.display = 'none';
@@ -523,23 +346,13 @@ function initMediaControls() {
   });
 }
 
-function applyCapturedImage(dataUrl, mime) {
-  const match = dataUrl.match(/^data:(.*?);base64,(.*)$/);
-  if (match) {
-    currentMimeType = match[1];
-    currentBase64Image = match[2];
-    document.getElementById('imagePreview').src = dataUrl;
-    document.getElementById('previewContainer').style.display = 'flex';
-  }
-}
-
 // ==========================================
-// 6. Gemini Vision AI 민원 정밀 판독
+// 6. Gemini Vision AI 판독 및 민원 접수
 // ==========================================
-async function analyzeComplaintImage(base64, mime, location, notes) {
+async function analyzeImageWithGemini(base64, mime, location, notes) {
   const prompt = `너는 지자체 스마트 도로 안전 관제 센터의 수석 AI 비전 판독관이다.
-첨부된 도로 현장 사진을 시각적으로 정밀하게 분석하여 위험 요소와 파손 상태를 파악하고, 반드시 지정된 JSON 규격으로만 응답하라.
-마크다운 태그(\`\`\`json)나 추가 설명 없이 순수 JSON 문자열만 출력해야 한다.
+첨부된 도로 현장 사진을 정밀 분석하여 위험 요소와 파손 상태를 파악하고, 반드시 순수 JSON 규격으로만 응답하라.
+마크다운 태그(\`\`\`json)나 추가 해설 없이 순수 JSON 문자열만 출력해야 한다.
 
 [제보 위치]: ${location}
 [작성자 메모]: ${notes || '별도 메모 없음'}
@@ -549,17 +362,14 @@ async function analyzeComplaintImage(base64, mime, location, notes) {
   "riskLevel": "긴급" | "주의" | "보통",
   "category": "포트홀" | "도로균열" | "결빙" | "낙석" | "침하" | "시설파손" | "기타",
   "summary": "사진에서 확인된 1줄 핵심 요약",
-  "visualFindings": "사진 속 도로 파손 범위 및 위험도에 대한 시각 설명",
+  "visualFindings": "사진 속 위험 상태에 대한 구체적인 시각 설명",
   "action": "지자체 도로보수과 담당자를 위한 긴급 조치 권고사항"
 }`;
 
   const models = ['gemini-2.5-flash', 'gemini-1.5-flash', 'gemini-2.0-flash'];
-  let lastErr = null;
-
   for (const m of models) {
     try {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${GEMINI_API_KEY}`;
-      const res = await fetch(url, {
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${GEMINI_API_KEY}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -573,56 +383,66 @@ async function analyzeComplaintImage(base64, mime, location, notes) {
         })
       });
 
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) continue;
       const data = await res.json();
       const txt = data.candidates?.[0]?.content?.parts?.[0]?.text;
-      if (!txt) throw new Error('응답 없음');
-      return JSON.parse(txt.replace(/```json/g, '').replace(/```/g, '').trim());
-    } catch (err) {
-      lastErr = err;
+      if (txt) return JSON.parse(txt.replace(/```json/g, '').replace(/```/g, '').trim());
+    } catch (e) {
+      console.warn(`모델 ${m} 호출 오류:`, e);
     }
   }
 
-  // 네트워크 차단 시 지능형 로컬 분석 폴백
+  // 폴백 분석 데이터
   return {
     riskLevel: '주의',
     category: '포트홀',
     summary: '노면 패임 및 보행자 걸림 위험 감지',
     visualFindings: '도로 표면에 원형 균열과 골재 탈락이 관측됨',
-    action: '해당 구간 안전 고깔 설치 및 가포장 긴급 복구'
+    action: '해당 구간 안전 고깔 설치 및 긴급 복구'
   };
 }
 
 async function handleComplaintSubmit(e) {
   e.preventDefault();
+
   if (!currentBase64Image) {
-    alert('카메라 촬영 또는 사진첩에서 현장 사진을 먼저 등록해 주세요.');
+    alert('카메라 촬영 또는 사진첩에서 현장 사진을 등록해 주세요.');
     return;
   }
 
-  const loc = document.getElementById('complaintLocation').value;
-  const notes = document.getElementById('complaintNotes').value;
+  const loc = document.getElementById('complaintLocation').value.trim();
+  const notes = document.getElementById('complaintNotes').value.trim();
+  const lat = parseFloat(document.getElementById('complaintLat').value) || 37.5665;
+  const lon = parseFloat(document.getElementById('complaintLon').value) || 126.9780;
   const btn = document.getElementById('submitComplaintBtn');
 
   btn.disabled = true;
-  btn.textContent = 'Vision AI가 현장 사진 정밀 판독 중...';
+  btn.textContent = 'AI가 현장 사진 판독 중...';
 
   try {
-    const analysis = await analyzeComplaintImage(currentBase64Image, currentMimeType, loc, notes);
+    const analysis = await analyzeImageWithGemini(currentBase64Image, currentMimeType, loc, notes);
 
-    complaintsData.unshift({
+    const newComplaint = {
       id: Date.now(),
       imageSrc: `data:${currentMimeType};base64,${currentBase64Image}`,
       location: loc,
+      lat: lat,
+      lon: lon,
       riskLevel: analysis.riskLevel || '보통',
       category: analysis.category || '기타',
-      summary: analysis.summary,
-      visualFindings: analysis.visualFindings,
-      action: analysis.action,
+      summary: analysis.summary || '민원 접수 완료',
+      visualFindings: analysis.visualFindings || '현장 점검 필요',
+      action: analysis.action || '긴급 안전 조치 요망',
       time: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })
-    });
+    };
 
+    complaintsData.unshift(newComplaint);
     renderComplaints();
+
+    // 지도 위에 민원 마커 즉시 표시!
+    addComplaintMarkerToMap(newComplaint);
+
+    // 폼 초기화
     document.getElementById('removeImgBtn').click();
     document.getElementById('complaintNotes').value = '';
   } finally {
@@ -656,24 +476,19 @@ function renderComplaints() {
         <div class="card-details">
           <div class="card-summary">${c.summary}</div>
           <div class="card-vision-desc">🔍 시각 판독: ${c.visualFindings}</div>
-          <div class="card-action">🚨 긴급 조치: ${c.action}</div>
+          <div class="card-action">🚨 권고 조치: ${c.action}</div>
+          <button type="button" class="btn-view-map" onclick="focusComplaintOnMap(${c.id})">🗺️ 지도 위치 보기</button>
         </div>
       </div>
     </article>
   `).join('');
 }
 
-function setComplaintCoords(lat, lon) {
-  document.getElementById('complaintLat').value = lat;
-  document.getElementById('complaintLon').value = lon;
-  document.getElementById('complaintLocation').value = `현장 위치 (${lat.toFixed(4)}, ${lon.toFixed(4)})`;
-}
-
 // ==========================================
-// 7. 시스템 초기 가동
+// 7. 초기화 이벤트 등록
 // ==========================================
 window.addEventListener('DOMContentLoaded', () => {
-  initMapEngine();
+  initMap();
   initMediaControls();
 
   // POI 자동완성 등록
@@ -687,18 +502,29 @@ window.addEventListener('DOMContentLoaded', () => {
     document.getElementById('endLon').value = lon;
   });
 
-  setupPoi('complaintLocation', 'complaintPoiList', (lat, lon) => {
-    setComplaintCoords(lat, lon);
+  setupPoi('complaintLocation', 'complaintPoiList', (lat, lon, name) => {
+    setComplaintCoords(lat, lon, name);
+    map.panTo([lat, lon]);
+  });
+
+  // GPS 버튼
+  document.getElementById('btnGpsStart').addEventListener('click', () => {
+    if (!navigator.geolocation) {
+      alert('GPS를 지원하지 않는 브라우저입니다.');
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const { latitude, longitude } = pos.coords;
+        document.getElementById('startInput').value = '내 현재 GPS 위치';
+        document.getElementById('startLat').value = latitude;
+        document.getElementById('startLon').value = longitude;
+        map.setView([latitude, longitude], 16);
+      },
+      (err) => alert(`GPS 확인 불가: ${err.message}`)
+    );
   });
 
   document.getElementById('routeForm').addEventListener('submit', searchPedestrianRoute);
-  document.getElementById('startSimBtn').addEventListener('click', startSimulation);
-  document.getElementById('startNaviBtn').addEventListener('click', startRealtimeNavigation);
   document.getElementById('complaintForm').addEventListener('submit', handleComplaintSubmit);
-
-  // 창 크기 변경 시 캔버스 반응형 유지
-  window.addEventListener('resize', () => {
-    resizeCanvas();
-    drawCanvasNavigation();
-  });
 });
