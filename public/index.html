@@ -2,10 +2,10 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>도로 안전 통합 관제 & 보행자 경로 안내 대시보드</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>도로 안전 통합 관제 & 보행자 경로 안내</title>
 
-  <!-- Leaflet 지도 엔진 (OpenStreetMap) -->
+  <!-- Leaflet 지도 엔진 -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
 
@@ -14,14 +14,24 @@
 <body>
   <header class="dashboard-header">
     <div class="header-container">
-      <h1>도로 안전 통합 관제 & 보행자 경로 안내 대시보드</h1>
-      <span class="status-indicator">● Node.js 백엔드 가동 중</span>
+      <h1>도로 안전 통합 관제 & 보행자 길찾기</h1>
+      <span class="status-indicator">● 시스템 가동 중</span>
     </div>
   </header>
 
+  <!-- 모바일 전용 상단 탭 바 (화면 폭 768px 이하에서만 노출) -->
+  <nav class="mobile-tab-nav">
+    <button type="button" class="tab-btn active" data-target="left-panel">
+      🗺️ 지도 & 길찾기
+    </button>
+    <button type="button" class="tab-btn" data-target="right-panel">
+      🚨 민원 제보 (<span id="mobileComplaintCount">0</span>)
+    </button>
+  </nav>
+
   <main class="dashboard-grid">
-    <!-- 좌측: 보행자 경로 탐색 & 안전 지도 -->
-    <section class="panel left-panel">
+    <!-- 좌측 패널: 보행자 경로 탐색 & 안전 지도 -->
+    <section class="panel left-panel active-panel">
       <div class="panel-header">
         <h2>보행자 경로 탐색 & 안전 관제 지도</h2>
       </div>
@@ -81,7 +91,7 @@
       </div>
     </section>
 
-    <!-- 우측: 사진 기반 민원 AI 분석 -->
+    <!-- 우측 패널: 사진 기반 민원 AI 분석 -->
     <section class="panel right-panel">
       <div class="panel-header">
         <h2>현장 사진 기반 도로 안전 AI 분석</h2>
@@ -104,8 +114,8 @@
         </div>
 
         <div class="input-group autocomplete-wrapper">
-          <label for="complaintLocation">발생 위치 (검색 또는 지도를 직접 클릭)</label>
-          <input type="text" id="complaintLocation" placeholder="주소를 입력하거나 지도를 클릭하세요" value="시청역 4번 출구 앞" required>
+          <label for="complaintLocation">발생 위치 (검색 또는 지도를 직접 터치)</label>
+          <input type="text" id="complaintLocation" placeholder="주소를 입력하거나 지도를 터치하세요" value="시청역 4번 출구 앞" required>
           <ul id="complaintPoiList" class="poi-dropdown"></ul>
           <input type="hidden" id="complaintLat" value="37.5665">
           <input type="hidden" id="complaintLon" value="126.9780">
