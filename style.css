@@ -35,11 +35,11 @@ body {
 
 .status-indicator {
   font-size: 0.85rem;
-  color: #10b981;
+  color: #38bdf8;
   font-weight: 600;
 }
 
-/* 대시보드 2열 레이아웃 */
+/* 대시보드 2열 그리드 레이아웃 */
 .dashboard-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -100,7 +100,8 @@ body {
   font-weight: 600;
 }
 
-.input-group input,
+.input-group input[type="text"],
+.input-group input[type="number"],
 .input-group textarea {
   background-color: #0f172a;
   border: 1px solid #475569;
@@ -110,11 +111,52 @@ body {
   font-size: 0.9rem;
 }
 
+.input-group input[type="file"] {
+  font-size: 0.85rem;
+  color: #94a3b8;
+}
+
 .input-group input:focus,
 .input-group textarea:focus {
   outline: none;
   border-color: #38bdf8;
   box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2);
+}
+
+/* 이미지 미리보기 박스 */
+.preview-box {
+  position: relative;
+  background-color: #0f172a;
+  border: 1px solid #475569;
+  border-radius: 8px;
+  overflow: hidden;
+  max-height: 180px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.preview-box img {
+  width: 100%;
+  height: 180px;
+  object-fit: cover;
+}
+
+.btn-remove {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background-color: rgba(239, 68, 68, 0.85);
+  color: #ffffff;
+  border: none;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.btn-remove:hover {
+  background-color: #dc2626;
 }
 
 .btn {
@@ -150,14 +192,14 @@ body {
   background-color: #0369a1;
 }
 
-/* 지도 영역 */
+/* 정적 지도 영역 */
 .map-container {
   position: relative;
   background-color: #0f172a;
   border: 1px solid #334155;
   border-radius: 8px;
   overflow: hidden;
-  height: 260px;
+  height: 240px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -167,7 +209,7 @@ body {
   position: absolute;
   top: 8px;
   left: 8px;
-  background: rgba(15, 23, 42, 0.8);
+  background: rgba(15, 23, 42, 0.85);
   padding: 4px 8px;
   border-radius: 4px;
   font-size: 0.75rem;
@@ -236,7 +278,7 @@ body {
 
 .step-list {
   list-style: none;
-  max-height: 200px;
+  max-height: 160px;
   overflow-y: auto;
   border: 1px solid #334155;
   border-radius: 6px;
@@ -262,7 +304,7 @@ body {
   min-width: 20px;
 }
 
-/* 민원 목록 및 카드 */
+/* 민원 리스트 및 카드 */
 .complaints-list-container {
   display: flex;
   flex-direction: column;
@@ -279,7 +321,7 @@ body {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  max-height: 520px;
+  max-height: 480px;
   overflow-y: auto;
   padding-right: 4px;
 }
@@ -291,7 +333,7 @@ body {
   padding: 14px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
 }
 
 .card-top {
@@ -316,13 +358,34 @@ body {
   color: #64748b;
 }
 
+.card-body-layout {
+  display: flex;
+  gap: 12px;
+}
+
+.card-thumbnail {
+  width: 90px;
+  height: 90px;
+  object-fit: cover;
+  border-radius: 6px;
+  border: 1px solid #334155;
+  flex-shrink: 0;
+}
+
+.card-details {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+}
+
 .card-summary {
   font-size: 0.95rem;
   font-weight: 600;
   color: #f1f5f9;
 }
 
-.card-original {
+.card-vision-desc {
   font-size: 0.82rem;
   color: #94a3b8;
   background: #1e293b;
