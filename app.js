@@ -18,12 +18,55 @@ const routeStepsList = document.getElementById('routeStepsList');
 
 const complaintForm = document.getElementById('complaintForm');
 const submitComplaintBtn = document.getElementById('submitComplaintBtn');
+const complaintImage = document.getElementById('complaintImage');
+const previewContainer = document.getElementById('previewContainer');
+const imagePreview = document.getElementById('imagePreview');
+const removeImgBtn = document.getElementById('removeImgBtn');
 const complaintLocation = document.getElementById('complaintLocation');
-const complaintContent = document.getElementById('complaintContent');
+const complaintNotes = document.getElementById('complaintNotes');
 const complaintsList = document.getElementById('complaintsList');
 const complaintCount = document.getElementById('complaintCount');
 
+let currentBase64Image = null;
+let currentMimeType = null;
 let complaintsData = [];
+
+// ==========================================
+// 이미지 업로드 및 Base64 변환 핸들러
+// ==========================================
+complaintImage.addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) {
+    clearImagePreview();
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = () => {
+    const dataUrl = reader.result;
+    // Base64 데이터 및 MimeType 분리 추출
+    const mimeMatch = dataUrl.match(/^data:(.*?);base64,(.*)$/);
+    if (mimeMatch) {
+      currentMimeType = mimeMatch[1];
+      currentBase64Image = mimeMatch[2];
+      imagePreview.src = dataUrl;
+      previewContainer.style.display = 'flex';
+    }
+  };
+  reader.readAsDataURL(file);
+});
+
+removeImgBtn.addEventListener('click', () => {
+  clearImagePreview();
+});
+
+function clearImagePreview() {
+  complaintImage.value = '';
+  currentBase64Image = null;
+  currentMimeType = null;
+  imagePreview.src = '';
+  previewContainer.style.display = 'none';
+}
 
 // ==========================================
 // Tmap 정적 지도 업데이트
@@ -31,18 +74,18 @@ let complaintsData = [];
 function updateStaticMap(lat, lon) {
   mapLoader.style.display = 'flex';
   const url = `https://apis.openapi.sk.com/tmap/staticMap?version=1&coordType=WGS84GEO&width=600&height=400&zoom=15&format=PNG&longitude=${lon}&latitude=${lat}&appKey=${TMAP_APP_KEY}`;
-  
+
   staticMapImg.onload = () => {
     mapLoader.style.display = 'none';
   };
   staticMapImg.onerror = () => {
-    mapLoader.textContent = '지도 이미지를 불러오지 못했습니다.';
+    mapLoader.textContent = '지도를 불러오지 못했습니다.';
   };
   staticMapImg.src = url;
 }
 
 // ==========================================
-// Tmap 보행자 경로 탐색 API 호출
+// Tmap 보행자 경로 탐색
 // ==========================================
 async function searchPedestrianRoute(e) {
   e.preventDefault();
@@ -58,7 +101,6 @@ async function searchPedestrianRoute(e) {
   searchRouteBtn.textContent = '경로 탐색 중...';
   routeStepsList.innerHTML = '<li class="empty-state">경로 정보를 분석하고 있습니다...</li>';
 
-  // 출발지 기준으로 정적 지도 동기화
   updateStaticMap(startLat, startLon);
 
   const payload = {
@@ -83,13 +125,13 @@ async function searchPedestrianRoute(e) {
     });
 
     if (!response.ok) {
-      throw new Error(`Tmap API 오류: ${response.status}`);
+      throw new Error(`Tmap 응답 오류 (${response.status})`);
     }
 
     const data = await response.json();
     renderRouteResult(data);
   } catch (error) {
-    console.error('보행자 경로 탐색 실패:', error);
+    console.error('경로 탐색 오류:', error);
     routeStepsList.innerHTML = `<li class="empty-state" style="color: #ef4444;">탐색 실패: ${error.message}</li>`;
   } finally {
     searchRouteBtn.disabled = false;
@@ -97,30 +139,22 @@ async function searchPedestrianRoute(e) {
   }
 }
 
-// ==========================================
-// 보행자 경로 탐색 결과 렌더링
-// ==========================================
 function renderRouteResult(data) {
   if (!data || !data.features || data.features.length === 0) {
-    routeStepsList.innerHTML = '<li class="empty-state">검색된 경로가 없습니다.</li>';
+    routeStepsList.innerHTML = '<li class="empty-state">탐색된 경로가 없습니다.</li>';
     return;
   }
 
-  // 총 거리 및 소요 시간 계산
   const totalFeature = data.features[0];
-  const totalDistance = totalFeature.properties.totalDistance; // 미터
-  const totalTime = totalFeature.properties.totalTime; // 초
+  const totalDistance = totalFeature.properties.totalDistance;
+  const totalTime = totalFeature.properties.totalTime;
 
-  const distanceText = totalDistance >= 1000 
+  summaryDistance.textContent = totalDistance >= 1000 
     ? (totalDistance / 1000).toFixed(2) + ' km' 
     : totalDistance + ' m';
-  const minutes = Math.round(totalTime / 60);
-
-  summaryDistance.textContent = distanceText;
-  summaryTime.textContent = `${minutes}분`;
+  summaryTime.textContent = `${Math.round(totalTime / 60)}분`;
   routeSummary.style.display = 'grid';
 
-  // 경로 안내 상세 단계 필터링
   const steps = data.features
     .filter(f => f.properties && f.properties.description)
     .map(f => f.properties.description);
@@ -139,22 +173,27 @@ function renderRouteResult(data) {
 }
 
 // ==========================================
-// Gemini API 민원 AI 분석
+// Gemini 2.0 Flash Vision AI 정밀 분석 (사진 기반)
 // ==========================================
-async function analyzeComplaintWithGemini(location, content) {
-  const prompt = `너는 지자체 도로 안전 관제 센터의 AI 분석관이다.
-다음 접수된 도로 안전 민원을 정밀 분석하여 반드시 지정된 JSON 규격으로만 응답하라.
-마크다운 태그(\`\`\`json)나 추가 설명 없이 순수 JSON 문자열만 출력해야 한다.
+async function analyzeImageWithGemini(base64Image, mimeType, location, userNotes) {
+  const prompt = `너는 지자체 스마트 도로 안전 관제 센터의 수석 AI 비전 판독관이다.
+첨부된 도로 현장 사진을 시각적으로 정밀하게 분석하여 위험 요소와 파손 정도를 파악하고, 반드시 지정된 JSON 규격으로만 응답하라.
+마크다운 태그(\`\`\`json)나 추가 해설 없이 순수 JSON 문자열만 출력해야 한다.
 
-[민원 발생 위치]: ${location}
-[민원 내용]: ${content}
+[제보 위치]: ${location}
+[작성자 메모]: ${userNotes || '별도 기재 내용 없음'}
 
-[출력 JSON 필드 규격]:
+[판독 기준]:
+1. 사진 속 도로 노면 상태, 파손 형태(원형 포트홀, 거북등 균열, 침하, 도로결빙/블랙아이스, 낙석, 시설물 파손 등), 규모를 시각적으로 확인하라.
+2. 보행자 발목 접지름/낙상 위험 및 차량 타이어 파손 등 위험도를 계산하여 등급을 매겨라.
+
+[출력 JSON 규격]:
 {
   "riskLevel": "긴급" | "주의" | "보통",
-  "category": "포트홀" | "결빙" | "낙석" | "사고" | "도로파손" | "기타",
-  "summary": "1줄 핵심 요약",
-  "action": "지자체 담당 부서의 권장 긴급 조치 사항"
+  "category": "포트홀" | "도로균열" | "결빙" | "낙석" | "침하" | "시설파손" | "기타",
+  "summary": "사진에서 확인된 1줄 핵심 요약 (예: 지름 약 30cm의 깊은 원형 포트홀 확인)",
+  "visualFindings": "사진 속 위험 상태에 대한 구체적인 시각 분석 설명 (노면 재질, 파손 범위, 물고임 등)",
+  "action": "지자체 도로보수과 담당자를 위한 긴급 조치 권고사항 (예: 긴급 아스콘 가포장, 안전 삼각대 설치)"
 }`;
 
   const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`;
@@ -166,7 +205,15 @@ async function analyzeComplaintWithGemini(location, content) {
     },
     body: JSON.stringify({
       contents: [{
-        parts: [{ text: prompt }]
+        parts: [
+          { text: prompt },
+          {
+            inline_data: {
+              mime_type: mimeType,
+              data: base64Image
+            }
+          }
+        ]
       }],
       generationConfig: {
         responseMimeType: "application/json"
@@ -175,17 +222,16 @@ async function analyzeComplaintWithGemini(location, content) {
   });
 
   if (!response.ok) {
-    throw new Error(`Gemini API 오류: ${response.status}`);
+    throw new Error(`Gemini Vision API 오류 (${response.status})`);
   }
 
   const result = await response.json();
   const rawText = result.candidates?.[0]?.content?.parts?.[0]?.text;
 
   if (!rawText) {
-    throw new Error('Gemini로부터 분석 응답을 수신하지 못했습니다.');
+    throw new Error('Gemini로부터 분석 응답을 받지 못했습니다.');
   }
 
-  // 혹시 감싸져 있을 수 있는 마크다운 블록 제거 후 파싱
   const cleanedJson = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
   return JSON.parse(cleanedJson);
 }
@@ -196,39 +242,45 @@ async function analyzeComplaintWithGemini(location, content) {
 async function handleComplaintSubmit(e) {
   e.preventDefault();
 
-  const location = complaintLocation.value.trim();
-  const content = complaintContent.value.trim();
+  if (!currentBase64Image) {
+    alert('도로 현장 사진을 첨부해야 AI 정밀 분석이 가능합니다.');
+    return;
+  }
 
-  if (!location || !content) return;
+  const location = complaintLocation.value.trim();
+  const notes = complaintNotes.value.trim();
 
   submitComplaintBtn.disabled = true;
-  submitComplaintBtn.textContent = 'AI 분석 진행 중...';
+  submitComplaintBtn.textContent = 'Vision AI가 현장 사진 판독 중...';
 
   try {
-    const analysis = await analyzeComplaintWithGemini(location, content);
+    const analysis = await analyzeImageWithGemini(currentBase64Image, currentMimeType, location, notes);
 
     const complaintItem = {
       id: Date.now(),
+      imageSrc: `data:${currentMimeType};base64,${currentBase64Image}`,
       location: location,
-      content: content,
+      notes: notes,
       riskLevel: analysis.riskLevel || '보통',
       category: analysis.category || '기타',
-      summary: analysis.summary || '민원 요약 없음',
-      action: analysis.action || '현장 실사 필요',
+      summary: analysis.summary || '사진 판독 요약 없음',
+      visualFindings: analysis.visualFindings || '시각 분석 정보 없음',
+      action: analysis.action || '현장 점검 요망',
       createdAt: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
     };
 
     complaintsData.unshift(complaintItem);
     renderComplaints();
-    
-    // 내용 초기화
-    complaintContent.value = '';
+
+    // 폼 정리
+    clearImagePreview();
+    complaintNotes.value = '';
   } catch (error) {
-    console.error('민원 AI 분석 실패:', error);
-    alert(`AI 분석 중 오류가 발생했습니다: ${error.message}`);
+    console.error('Vision AI 분석 실패:', error);
+    alert(`AI 사진 판독 실패: ${error.message}`);
   } finally {
     submitComplaintBtn.disabled = false;
-    submitComplaintBtn.textContent = 'AI 분석 및 제보';
+    submitComplaintBtn.textContent = '사진 AI 자동 분석 및 제보';
   }
 }
 
@@ -258,22 +310,28 @@ function renderComplaints() {
           </div>
           <span class="card-time">${item.createdAt}</span>
         </div>
-        <div class="card-summary">${item.summary}</div>
-        <div class="card-original">제보 내용: ${item.content}</div>
-        <div class="card-action">조치 권고: ${item.action}</div>
+        
+        <div class="card-body-layout">
+          <img src="${item.imageSrc}" alt="현장 사진" class="card-thumbnail">
+          <div class="card-details">
+            <div class="card-summary">${item.summary}</div>
+            <div class="card-vision-desc">🔍 판독 상세: ${item.visualFindings}</div>
+            <div class="card-action">🚨 권고 조치: ${item.action}</div>
+          </div>
+        </div>
       </article>
     `;
   }).join('');
 }
 
 // ==========================================
-// 초기화 및 이벤트 리스너 등록
+// 초기화
 // ==========================================
 function init() {
   routeForm.addEventListener('submit', searchPedestrianRoute);
   complaintForm.addEventListener('submit', handleComplaintSubmit);
 
-  // 기본 지도 로드 (서울역 기준)
+  // 기본 지도 로드 (서울역)
   updateStaticMap(37.5547, 126.9706);
 }
 
