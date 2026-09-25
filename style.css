@@ -1,0 +1,380 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  background-color: #0f172a;
+  color: #e2e8f0;
+  line-height: 1.5;
+  min-height: 100vh;
+}
+
+/* 상단 헤더 */
+.dashboard-header {
+  background-color: #1e293b;
+  border-bottom: 1px solid #334155;
+  padding: 16px 24px;
+}
+
+.header-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  max-width: 1600px;
+  margin: 0 auto;
+}
+
+.dashboard-header h1 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #f8fafc;
+}
+
+.status-indicator {
+  font-size: 0.85rem;
+  color: #10b981;
+  font-weight: 600;
+}
+
+/* 대시보드 2열 레이아웃 */
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  max-width: 1600px;
+  margin: 24px auto;
+  padding: 0 24px;
+}
+
+@media (max-width: 1024px) {
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.panel {
+  background-color: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 10px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.panel-header {
+  border-bottom: 1px solid #334155;
+  padding-bottom: 10px;
+}
+
+.panel-header h2 {
+  font-size: 1.1rem;
+  color: #38bdf8;
+}
+
+/* 폼 스타일 */
+.control-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.input-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.input-group label {
+  font-size: 0.8rem;
+  color: #94a3b8;
+  font-weight: 600;
+}
+
+.input-group input,
+.input-group textarea {
+  background-color: #0f172a;
+  border: 1px solid #475569;
+  border-radius: 6px;
+  padding: 8px 12px;
+  color: #f8fafc;
+  font-size: 0.9rem;
+}
+
+.input-group input:focus,
+.input-group textarea:focus {
+  outline: none;
+  border-color: #38bdf8;
+  box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2);
+}
+
+.btn {
+  padding: 10px 16px;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  font-size: 0.95rem;
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background-color: #2563eb;
+  color: #ffffff;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background-color: #1d4ed8;
+}
+
+.btn-secondary {
+  background-color: #0284c7;
+  color: #ffffff;
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background-color: #0369a1;
+}
+
+/* 지도 영역 */
+.map-container {
+  position: relative;
+  background-color: #0f172a;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  overflow: hidden;
+  height: 260px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.map-label {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  background: rgba(15, 23, 42, 0.8);
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  color: #cbd5e1;
+  z-index: 2;
+}
+
+.static-map {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.loader-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.9rem;
+  color: #38bdf8;
+  z-index: 3;
+}
+
+/* 경로 요약 수치 */
+.route-summary {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.summary-metric {
+  background-color: #0f172a;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  padding: 12px;
+  text-align: center;
+}
+
+.metric-title {
+  display: block;
+  font-size: 0.75rem;
+  color: #94a3b8;
+  margin-bottom: 4px;
+}
+
+.metric-value {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #38bdf8;
+}
+
+/* 상세 안내 리스트 */
+.route-steps-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.route-steps-container h3,
+.list-header h3 {
+  font-size: 0.9rem;
+  color: #cbd5e1;
+}
+
+.step-list {
+  list-style: none;
+  max-height: 200px;
+  overflow-y: auto;
+  border: 1px solid #334155;
+  border-radius: 6px;
+  background-color: #0f172a;
+}
+
+.step-item {
+  padding: 8px 12px;
+  border-bottom: 1px solid #1e293b;
+  font-size: 0.85rem;
+  color: #cbd5e1;
+  display: flex;
+  gap: 8px;
+}
+
+.step-item:last-child {
+  border-bottom: none;
+}
+
+.step-index {
+  color: #38bdf8;
+  font-weight: 700;
+  min-width: 20px;
+}
+
+/* 민원 목록 및 카드 */
+.complaints-list-container {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.list-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.cards-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 520px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.complaint-card {
+  background-color: #0f172a;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.card-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.card-location {
+  font-size: 0.8rem;
+  color: #94a3b8;
+}
+
+.card-time {
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
+.card-summary {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #f1f5f9;
+}
+
+.card-original {
+  font-size: 0.82rem;
+  color: #94a3b8;
+  background: #1e293b;
+  padding: 6px 10px;
+  border-radius: 4px;
+}
+
+.card-action {
+  font-size: 0.82rem;
+  color: #38bdf8;
+  background: rgba(56, 189, 248, 0.1);
+  border-left: 3px solid #38bdf8;
+  padding: 6px 10px;
+  border-radius: 0 4px 4px 0;
+}
+
+/* 뱃지 */
+.badge {
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 4px;
+}
+
+.badge-count {
+  background-color: #334155;
+  color: #94a3b8;
+}
+
+.badge-danger {
+  background-color: #ef4444;
+  color: #ffffff;
+}
+
+.badge-warning {
+  background-color: #f59e0b;
+  color: #000000;
+}
+
+.badge-normal {
+  background-color: #10b981;
+  color: #ffffff;
+}
+
+.badge-category {
+  background-color: #334155;
+  color: #cbd5e1;
+}
+
+.empty-state {
+  text-align: center;
+  color: #64748b;
+  font-size: 0.85rem;
+  padding: 24px;
+}
