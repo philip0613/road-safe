@@ -3,30 +3,29 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>도로 안전 통합 관제 & 보행자 내비게이션</title>
+  <title>도로 안전 통합 관제 & 보행자 경로 안내</title>
 
-  <!-- OpenStreetMap 구동용 초고속 Leaflet 엔진 -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" />
-  <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
+  <!-- 글로벌 표준 Leaflet 지도 라이브러리 (Cloudflare cdnjs) -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
 
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <header class="dashboard-header">
     <div class="header-container">
-      <h1>도로 안전 통합 관제 & 보행자 내비게이션</h1>
-      <span class="status-indicator">● Tmap 길찾기 & Gemini AI 실시간 연동 중</span>
+      <h1>도로 안전 통합 관제 & 보행자 경로 안내 대시보드</h1>
+      <span class="status-indicator">● 관제 시스템 가동 중</span>
     </div>
   </header>
 
   <main class="dashboard-grid">
-    <!-- 좌측 패널: Tmap 보행자 실시간 내비게이션 및 지도 -->
+    <!-- 좌측: 보행자 경로 탐색 & 지도 -->
     <section class="panel left-panel">
       <div class="panel-header">
-        <h2>보행자 실시간 내비게이션</h2>
+        <h2>보행자 경로 탐색 & 안전 관제 지도</h2>
       </div>
 
-      <!-- 출발지 / 도착지 검색 폼 (POI 유추) -->
       <form id="routeForm" class="control-form" autocomplete="off">
         <div class="input-row">
           <div class="input-group autocomplete-wrapper">
@@ -42,53 +41,47 @@
 
           <div class="input-group autocomplete-wrapper">
             <label for="endInput">도착지 (장소 자동 유추)</label>
-            <input type="text" id="endInput" placeholder="도착 목적지 검색" value="남대문시장" required>
+            <input type="text" id="endInput" placeholder="도착 장소 입력" value="남대문시장" required>
             <ul id="endPoiList" class="poi-dropdown"></ul>
             <input type="hidden" id="endLat" value="37.5592">
             <input type="hidden" id="endLon" value="126.9776">
           </div>
         </div>
 
-        <div class="action-buttons-row">
-          <button type="submit" id="searchRouteBtn" class="btn btn-primary">보행자 경로 탐색</button>
-          <button type="button" id="startSimBtn" class="btn btn-simulate" style="display: none;">모의 주행 (테스트)</button>
-          <button type="button" id="startNaviBtn" class="btn btn-navi" style="display: none;">실시간 네비 시작</button>
-        </div>
+        <button type="submit" id="searchRouteBtn" class="btn btn-primary">보행자 경로 탐색</button>
       </form>
 
-      <!-- 지도 뷰어 & 내비게이션 HUD -->
+      <!-- 지도 컨테이너 -->
       <div class="map-container">
         <div id="map"></div>
-
-        <!-- 실시간 네비 안내 HUD -->
-        <div id="naviHud" class="navi-hud" style="display: none;">
-          <div class="hud-main">
-            <span class="hud-icon">🚶</span>
-            <div class="hud-instruction" id="hudInstruction">경로를 따라 이동하세요</div>
-          </div>
-          <div class="hud-sub">
-            <span id="hudRemainDistance">남은 거리: -</span>
-            <span class="divider">|</span>
-            <span id="hudRemainTime">남은 시간: -</span>
-          </div>
-        </div>
-
         <div class="map-legend">
           <span>🟢 출발</span>
           <span>🔵 도착</span>
-          <span>🚨 민원 지점</span>
+          <span>🚨 도로 민원 지점</span>
+        </div>
+      </div>
+
+      <!-- 탐색 요약 정보 -->
+      <div id="routeSummary" class="route-summary" style="display: none;">
+        <div class="summary-metric">
+          <span class="metric-title">총 이동 거리</span>
+          <span class="metric-value" id="summaryDistance">-</span>
+        </div>
+        <div class="summary-metric">
+          <span class="metric-title">예상 소요 시간</span>
+          <span class="metric-value" id="summaryTime">-</span>
         </div>
       </div>
 
       <div class="route-steps-container">
-        <h3>주요 경로 안내 목록</h3>
+        <h3>TMAP 보행자 구간별 안내</h3>
         <ul id="routeStepsList" class="step-list">
-          <li class="empty-state">경로 탐색 시 단계별 회전 및 보행 안내가 표시됩니다.</li>
+          <li class="empty-state">경로 탐색 버튼을 누르면 횡단보도 및 안전 이동 구간이 표시됩니다.</li>
         </ul>
       </div>
     </section>
 
-    <!-- 우측 패널: 사진 기반 도로 안전 민원 접수 및 Gemini AI 판독 -->
+    <!-- 우측: 사진 기반 민원 AI 분석 -->
     <section class="panel right-panel">
       <div class="panel-header">
         <h2>현장 사진 기반 도로 안전 AI 분석</h2>
@@ -98,11 +91,12 @@
         <div class="input-group">
           <label>현장 사진 등록 (필수)</label>
           <div class="media-btn-group">
-            <button type="button" id="btnCamera" class="btn btn-media">📷 카메라 직접 촬영</button>
-            <button type="button" id="btnGallery" class="btn btn-media">🖼️ 사진첩에서 선택</button>
+            <!-- 브라우저 네이티브 label 연동 (클릭 실패 원천 차단) -->
+            <label for="cameraInput" class="btn-media">📷 카메라 직접 촬영</label>
+            <label for="galleryInput" class="btn-media">🖼️ 사진첩에서 선택</label>
           </div>
-          <input type="file" id="cameraInput" accept="image/*" capture="environment" style="display: none;">
-          <input type="file" id="galleryInput" accept="image/*" style="display: none;">
+          <input type="file" id="cameraInput" accept="image/*" capture="environment" class="visually-hidden">
+          <input type="file" id="galleryInput" accept="image/*" class="visually-hidden">
         </div>
 
         <div id="previewContainer" class="preview-box" style="display: none;">
@@ -111,8 +105,8 @@
         </div>
 
         <div class="input-group autocomplete-wrapper">
-          <label for="complaintLocation">발생 위치 (검색 또는 지도 클릭)</label>
-          <input type="text" id="complaintLocation" placeholder="주소를 입력하거나 지도를 직접 클릭하세요" value="시청역 4번 출구 앞" required>
+          <label for="complaintLocation">발생 위치 (검색 또는 지도를 직접 클릭)</label>
+          <input type="text" id="complaintLocation" placeholder="주소를 입력하거나 지도를 클릭하세요" value="시청역 4번 출구 앞" required>
           <ul id="complaintPoiList" class="poi-dropdown"></ul>
           <input type="hidden" id="complaintLat" value="37.5665">
           <input type="hidden" id="complaintLon" value="126.9780">
@@ -120,7 +114,7 @@
 
         <div class="input-group">
           <label for="complaintNotes">추가 메모 (선택 사항)</label>
-          <textarea id="complaintNotes" rows="2" placeholder="도로 상태나 보행 위험 요소를 적어주세요."></textarea>
+          <textarea id="complaintNotes" rows="2" placeholder="도로 파손 상태나 특이사항을 적어주세요."></textarea>
         </div>
 
         <button type="submit" id="submitComplaintBtn" class="btn btn-secondary">사진 AI 자동 분석 및 제보</button>
@@ -132,7 +126,7 @@
           <span id="complaintCount" class="badge badge-count">0건</span>
         </div>
         <div id="complaintsList" class="cards-list">
-          <div class="empty-state">현장 사진을 올리면 AI가 위험도를 분석하고 지도에 핀을 꽂습니다.</div>
+          <div class="empty-state">현장 사진을 올리면 AI가 분석 후 지도에 마커를 찍습니다.</div>
         </div>
       </div>
     </section>
