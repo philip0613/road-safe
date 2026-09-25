@@ -10,7 +10,7 @@
   <header class="dashboard-header">
     <div class="header-container">
       <h1>도로 안전 통합 관제 & 보행자 경로 안내 대시보드</h1>
-      <span class="status-indicator">● 시스템 정상 가동 중</span>
+      <span class="status-indicator">● Gemini Vision AI 시스템 가동 중</span>
     </div>
   </header>
 
@@ -83,33 +83,44 @@
       </div>
     </section>
 
-    <!-- 우측 패널: 도로 안전 민원 접수 및 Gemini AI 분석 -->
+    <!-- 우측 패널: 사진 기반 도로 안전 민원 접수 및 Gemini Vision 분석 -->
     <section class="panel right-panel">
       <div class="panel-header">
-        <h2>도로 안전 민원 접수 & AI 자동 분석</h2>
+        <h2>현장 사진 기반 도로 안전 AI 정밀 분석</h2>
       </div>
 
       <form id="complaintForm" class="control-form">
         <div class="input-group">
-          <label for="complaintLocation">발생 위치</label>
-          <input type="text" id="complaintLocation" placeholder="예: 시청역 4번 출구 앞 횡단보도 부근" value="시청역 4번 출구 앞 횡단보도" required>
+          <label for="complaintImage">현장 사진 업로드 (필수)</label>
+          <input type="file" id="complaintImage" accept="image/*" required>
+        </div>
+
+        <!-- 이미지 미리보기 영역 -->
+        <div id="previewContainer" class="preview-box" style="display: none;">
+          <img id="imagePreview" alt="업로드 이미지 미리보기">
+          <button type="button" id="removeImgBtn" class="btn-remove">사진 제거</button>
         </div>
 
         <div class="input-group">
-          <label for="complaintContent">민원 내용 상세</label>
-          <textarea id="complaintContent" rows="3" placeholder="도로 파손, 포트홀, 결빙 상태 등을 상세히 입력하세요." required>횡단보도 진입로 부근에 지름 30cm 가량의 깊은 포트홀이 발생하여 보행자가 발을 헛디딜 위험이 크고 차량 통행 시 물웅덩이 파편이 튑니다.</textarea>
+          <label for="complaintLocation">발생 위치</label>
+          <input type="text" id="complaintLocation" placeholder="예: 시청역 4번 출구 앞 횡단보도" value="시청역 4번 출구 앞" required>
         </div>
 
-        <button type="submit" id="submitComplaintBtn" class="btn btn-secondary">AI 분석 및 제보</button>
+        <div class="input-group">
+          <label for="complaintNotes">추가 메모 (선택 사항)</label>
+          <textarea id="complaintNotes" rows="2" placeholder="사진 외에 특이사항이 있다면 적어주세요."></textarea>
+        </div>
+
+        <button type="submit" id="submitComplaintBtn" class="btn btn-secondary">사진 AI 자동 분석 및 제보</button>
       </form>
 
       <div class="complaints-list-container">
         <div class="list-header">
-          <h3>접수 및 AI 분석 카드 목록</h3>
+          <h3>AI 분석 완료 민원 목록</h3>
           <span id="complaintCount" class="badge badge-count">0건</span>
         </div>
         <div id="complaintsList" class="cards-list">
-          <div class="empty-state">접수된 민원이 없습니다. 위 양식에서 제보를 등록해보세요.</div>
+          <div class="empty-state">도로 위험 현장 사진을 업로드하면 AI가 즉시 시각 판독을 수행합니다.</div>
         </div>
       </div>
     </section>
