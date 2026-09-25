@@ -4,6 +4,9 @@
 const TMAP_APP_KEY = 'YEWVxfrK4j8xTNQZURJ4z1Te4JTZs26v45fgmfn7';
 const GEMINI_API_KEY = 'AQ.Ab8RN6J3dukN_07G3h0hTGxacIAinSCW1LKJ1i63VHbxPNgLAg';
 
+// 모델명 지정 (gemini-3.6-flash)
+const GEMINI_MODEL = 'gemini-3.6-flash';
+
 // ==========================================
 // DOM 요소 참조
 // ==========================================
@@ -44,7 +47,6 @@ complaintImage.addEventListener('change', (e) => {
   const reader = new FileReader();
   reader.onload = () => {
     const dataUrl = reader.result;
-    // Base64 데이터 및 MimeType 분리 추출
     const mimeMatch = dataUrl.match(/^data:(.*?);base64,(.*)$/);
     if (mimeMatch) {
       currentMimeType = mimeMatch[1];
@@ -173,30 +175,30 @@ function renderRouteResult(data) {
 }
 
 // ==========================================
-// Gemini 2.0 Flash Vision AI 정밀 분석 (사진 기반)
+// Gemini 3.6 Flash Vision AI 분석
 // ==========================================
 async function analyzeImageWithGemini(base64Image, mimeType, location, userNotes) {
   const prompt = `너는 지자체 스마트 도로 안전 관제 센터의 수석 AI 비전 판독관이다.
-첨부된 도로 현장 사진을 시각적으로 정밀하게 분석하여 위험 요소와 파손 정도를 파악하고, 반드시 지정된 JSON 규격으로만 응답하라.
+첨부된 도로 현장 사진을 시각적으로 정밀하게 분석하여 위험 요소와 파손 상태를 파악하고, 반드시 지정된 JSON 규격으로만 응답하라.
 마크다운 태그(\`\`\`json)나 추가 해설 없이 순수 JSON 문자열만 출력해야 한다.
 
 [제보 위치]: ${location}
 [작성자 메모]: ${userNotes || '별도 기재 내용 없음'}
 
 [판독 기준]:
-1. 사진 속 도로 노면 상태, 파손 형태(원형 포트홀, 거북등 균열, 침하, 도로결빙/블랙아이스, 낙석, 시설물 파손 등), 규모를 시각적으로 확인하라.
-2. 보행자 발목 접지름/낙상 위험 및 차량 타이어 파손 등 위험도를 계산하여 등급을 매겨라.
+1. 사진 속 도로 노면 상태, 파손 형태(포트홀, 크랙/균열, 도로침하, 결빙/블랙아이스, 낙석, 시설물 파손 등), 규모를 시각적으로 확인하라.
+2. 보행자 보행 안전(낙상, 발목 부상) 및 통행 차량 안전을 종합하여 위험도를 산정하라.
 
 [출력 JSON 규격]:
 {
   "riskLevel": "긴급" | "주의" | "보통",
   "category": "포트홀" | "도로균열" | "결빙" | "낙석" | "침하" | "시설파손" | "기타",
-  "summary": "사진에서 확인된 1줄 핵심 요약 (예: 지름 약 30cm의 깊은 원형 포트홀 확인)",
-  "visualFindings": "사진 속 위험 상태에 대한 구체적인 시각 분석 설명 (노면 재질, 파손 범위, 물고임 등)",
-  "action": "지자체 도로보수과 담당자를 위한 긴급 조치 권고사항 (예: 긴급 아스콘 가포장, 안전 삼각대 설치)"
+  "summary": "사진에서 확인된 1줄 핵심 요약",
+  "visualFindings": "사진 속 위험 상태에 대한 구체적인 시각 분석 설명",
+  "action": "지자체 도로보수과 담당자를 위한 긴급 조치 권고사항"
 }`;
 
-  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`;
+  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
 
   const response = await fetch(endpoint, {
     method: 'POST',
@@ -221,15 +223,18 @@ async function analyzeImageWithGemini(base64Image, mimeType, location, userNotes
     })
   });
 
+  // 구글 API 응답 에러 확인
   if (!response.ok) {
-    throw new Error(`Gemini Vision API 오류 (${response.status})`);
+    const errorJson = await response.json().catch(() => ({}));
+    const message = errorJson.error?.message || `HTTP ${response.status} 오류`;
+    throw new Error(message);
   }
 
   const result = await response.json();
   const rawText = result.candidates?.[0]?.content?.parts?.[0]?.text;
 
   if (!rawText) {
-    throw new Error('Gemini로부터 분석 응답을 받지 못했습니다.');
+    throw new Error('Gemini로부터 분석 응답을 수신하지 못했습니다.');
   }
 
   const cleanedJson = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
@@ -272,7 +277,6 @@ async function handleComplaintSubmit(e) {
     complaintsData.unshift(complaintItem);
     renderComplaints();
 
-    // 폼 정리
     clearImagePreview();
     complaintNotes.value = '';
   } catch (error) {
@@ -331,7 +335,7 @@ function init() {
   routeForm.addEventListener('submit', searchPedestrianRoute);
   complaintForm.addEventListener('submit', handleComplaintSubmit);
 
-  // 기본 지도 로드 (서울역)
+  // 기본 지도 로드 (서울역 기준)
   updateStaticMap(37.5547, 126.9706);
 }
 
