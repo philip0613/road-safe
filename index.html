@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>도로 안전 통합 관제 & 보행자 경로 안내 대시보드</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="dashboard-header">
+    <div class="header-container">
+      <h1>도로 안전 통합 관제 & 보행자 경로 안내 대시보드</h1>
+      <span class="status-indicator">● 시스템 정상 가동 중</span>
+    </div>
+  </header>
+
+  <main class="dashboard-grid">
+    <!-- 좌측 패널: Tmap 보행자 길찾기 및 정적 지도 -->
+    <section class="panel left-panel">
+      <div class="panel-header">
+        <h2>보행자 안전 경로 안내</h2>
+      </div>
+
+      <form id="routeForm" class="control-form">
+        <div class="input-row">
+          <div class="input-group">
+            <label for="startName">출발지 명칭</label>
+            <input type="text" id="startName" value="서울역 1번출구" required>
+          </div>
+          <div class="input-group">
+            <label for="endName">도착지 명칭</label>
+            <input type="text" id="endName" value="남대문시장" required>
+          </div>
+        </div>
+
+        <div class="input-row">
+          <div class="input-group">
+            <label for="startLat">출발 위도 (Lat)</label>
+            <input type="number" id="startLat" step="any" value="37.5547" required>
+          </div>
+          <div class="input-group">
+            <label for="startLon">출발 경도 (Lon)</label>
+            <input type="number" id="startLon" step="any" value="126.9706" required>
+          </div>
+        </div>
+
+        <div class="input-row">
+          <div class="input-group">
+            <label for="endLat">도착 위도 (Lat)</label>
+            <input type="number" id="endLat" step="any" value="37.5592" required>
+          </div>
+          <div class="input-group">
+            <label for="endLon">도착 경도 (Lon)</label>
+            <input type="number" id="endLon" step="any" value="126.9776" required>
+          </div>
+        </div>
+
+        <button type="submit" id="searchRouteBtn" class="btn btn-primary">보행자 안전 경로 탐색</button>
+      </form>
+
+      <div class="map-container">
+        <div class="map-label">실시간 위치 지도 (출발지 기준)</div>
+        <img id="staticMapImg" class="static-map" alt="Tmap 정적 지도" src="">
+        <div id="mapLoader" class="loader-overlay" style="display: none;">지도 로딩 중...</div>
+      </div>
+
+      <div class="route-summary" id="routeSummary" style="display: none;">
+        <div class="summary-metric">
+          <span class="metric-title">총 이동 거리</span>
+          <span class="metric-value" id="summaryDistance">-</span>
+        </div>
+        <div class="summary-metric">
+          <span class="metric-title">예상 소요 시간</span>
+          <span class="metric-value" id="summaryTime">-</span>
+        </div>
+      </div>
+
+      <div class="route-steps-container">
+        <h3>상세 이동 안내</h3>
+        <ul id="routeStepsList" class="step-list">
+          <li class="empty-state">경로 탐색 버튼을 누르면 상세 안내가 표시됩니다.</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- 우측 패널: 도로 안전 민원 접수 및 Gemini AI 분석 -->
+    <section class="panel right-panel">
+      <div class="panel-header">
+        <h2>도로 안전 민원 접수 & AI 자동 분석</h2>
+      </div>
+
+      <form id="complaintForm" class="control-form">
+        <div class="input-group">
+          <label for="complaintLocation">발생 위치</label>
+          <input type="text" id="complaintLocation" placeholder="예: 시청역 4번 출구 앞 횡단보도 부근" value="시청역 4번 출구 앞 횡단보도" required>
+        </div>
+
+        <div class="input-group">
+          <label for="complaintContent">민원 내용 상세</label>
+          <textarea id="complaintContent" rows="3" placeholder="도로 파손, 포트홀, 결빙 상태 등을 상세히 입력하세요." required>횡단보도 진입로 부근에 지름 30cm 가량의 깊은 포트홀이 발생하여 보행자가 발을 헛디딜 위험이 크고 차량 통행 시 물웅덩이 파편이 튑니다.</textarea>
+        </div>
+
+        <button type="submit" id="submitComplaintBtn" class="btn btn-secondary">AI 분석 및 제보</button>
+      </form>
+
+      <div class="complaints-list-container">
+        <div class="list-header">
+          <h3>접수 및 AI 분석 카드 목록</h3>
+          <span id="complaintCount" class="badge badge-count">0건</span>
+        </div>
+        <div id="complaintsList" class="cards-list">
+          <div class="empty-state">접수된 민원이 없습니다. 위 양식에서 제보를 등록해보세요.</div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
