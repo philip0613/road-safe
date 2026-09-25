@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>도로 안전 통합 관제 & 보행자 경로 안내 대시보드</title>
+
+  <!-- Leaflet 지도 엔진 (OpenStreetMap) -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="dashboard-header">
+    <div class="header-container">
+      <h1>도로 안전 통합 관제 & 보행자 경로 안내 대시보드</h1>
+      <span class="status-indicator">● Node.js 백엔드 가동 중</span>
+    </div>
+  </header>
+
+  <main class="dashboard-grid">
+    <!-- 좌측: 보행자 경로 탐색 & 안전 지도 -->
+    <section class="panel left-panel">
+      <div class="panel-header">
+        <h2>보행자 경로 탐색 & 안전 관제 지도</h2>
+      </div>
+
+      <form id="routeForm" class="control-form" autocomplete="off">
+        <div class="input-row">
+          <div class="input-group autocomplete-wrapper">
+            <label for="startInput">출발지 (장소 자동 유추)</label>
+            <div class="input-with-btn">
+              <input type="text" id="startInput" placeholder="출발 장소 입력" value="서울역 1번출구" required>
+              <button type="button" id="btnGpsStart" class="btn-inline">📍내위치</button>
+            </div>
+            <ul id="startPoiList" class="poi-dropdown"></ul>
+            <input type="hidden" id="startLat" value="37.5547">
+            <input type="hidden" id="startLon" value="126.9706">
+          </div>
+
+          <div class="input-group autocomplete-wrapper">
+            <label for="endInput">도착지 (장소 자동 유추)</label>
+            <input type="text" id="endInput" placeholder="도착 장소 입력" value="남대문시장" required>
+            <ul id="endPoiList" class="poi-dropdown"></ul>
+            <input type="hidden" id="endLat" value="37.5592">
+            <input type="hidden" id="endLon" value="126.9776">
+          </div>
+        </div>
+
+        <button type="submit" id="searchRouteBtn" class="btn btn-primary">보행자 경로 탐색</button>
+      </form>
+
+      <!-- 지도 뷰어 -->
+      <div class="map-container">
+        <div id="map"></div>
+        <div class="map-legend">
+          <span>🟢 출발</span>
+          <span>🔵 도착</span>
+          <span>🚨 도로 민원</span>
+        </div>
+      </div>
+
+      <!-- 탐색 요약 정보 -->
+      <div id="routeSummary" class="route-summary" style="display: none;">
+        <div class="summary-metric">
+          <span class="metric-title">총 이동 거리</span>
+          <span class="metric-value" id="summaryDistance">-</span>
+        </div>
+        <div class="summary-metric">
+          <span class="metric-title">예상 소요 시간</span>
+          <span class="metric-value" id="summaryTime">-</span>
+        </div>
+      </div>
+
+      <div class="route-steps-container">
+        <h3>TMAP 보행자 구간별 안내</h3>
+        <ul id="routeStepsList" class="step-list">
+          <li class="empty-state">경로 탐색 버튼을 누르면 횡단보도 및 안전 이동 구간이 표시됩니다.</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- 우측: 사진 기반 민원 AI 분석 -->
+    <section class="panel right-panel">
+      <div class="panel-header">
+        <h2>현장 사진 기반 도로 안전 AI 분석</h2>
+      </div>
+
+      <form id="complaintForm" class="control-form" autocomplete="off">
+        <div class="input-group">
+          <label>현장 사진 등록 (필수)</label>
+          <div class="media-btn-group">
+            <label for="cameraInput" class="btn-media">📷 카메라 직접 촬영</label>
+            <label for="galleryInput" class="btn-media">🖼️ 사진첩에서 선택</label>
+          </div>
+          <input type="file" id="cameraInput" accept="image/*" capture="environment" class="visually-hidden">
+          <input type="file" id="galleryInput" accept="image/*" class="visually-hidden">
+        </div>
+
+        <div id="previewContainer" class="preview-box" style="display: none;">
+          <img id="imagePreview" alt="업로드 이미지 미리보기">
+          <button type="button" id="removeImgBtn" class="btn-remove">사진 제거</button>
+        </div>
+
+        <div class="input-group autocomplete-wrapper">
+          <label for="complaintLocation">발생 위치 (검색 또는 지도를 직접 클릭)</label>
+          <input type="text" id="complaintLocation" placeholder="주소를 입력하거나 지도를 클릭하세요" value="시청역 4번 출구 앞" required>
+          <ul id="complaintPoiList" class="poi-dropdown"></ul>
+          <input type="hidden" id="complaintLat" value="37.5665">
+          <input type="hidden" id="complaintLon" value="126.9780">
+        </div>
+
+        <div class="input-group">
+          <label for="complaintNotes">추가 메모 (선택 사항)</label>
+          <textarea id="complaintNotes" rows="2" placeholder="도로 파손 상태나 특이사항을 적어주세요."></textarea>
+        </div>
+
+        <button type="submit" id="submitComplaintBtn" class="btn btn-secondary">사진 AI 자동 분석 및 제보</button>
+      </form>
+
+      <div class="complaints-list-container">
+        <div class="list-header">
+          <h3>AI 분석 완료 민원 목록</h3>
+          <span id="complaintCount" class="badge badge-count">0건</span>
+        </div>
+        <div id="complaintsList" class="cards-list">
+          <div class="empty-state">현장 사진을 올리면 AI가 분석 후 지도에 마커를 찍습니다.</div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
